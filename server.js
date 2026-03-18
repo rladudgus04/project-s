@@ -45,6 +45,7 @@ function damagePlayer(room, player, base) {
   const mult = (player.defenseMult||1) * (player.role==='tanker'?0.5:1);
   player.hp = Math.max(0, player.hp - base*mult);
   io.to(room.id).emit('playerHealthUpdate',{playerId:player.id,hp:Math.floor(player.hp),maxHp:player.maxHp});
+  if(player.hp<=0) io.to(room.id).emit('playerDied',{playerId:player.id});
 }
 
 // ===== 보스 패턴 =====
@@ -66,15 +67,14 @@ const BOSS_AI = {
       damagePlayer(room,target,boss.dmg);
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
-    // 차지 공격 (3.5s마다)
-    if (!boss.isCharging && (!boss.lastCharge||now-boss.lastCharge>(phase2?2200:3500))) {
+    // 차지 공격 — 쿨타임 단축, 돌진 속도 대폭 상승
+    if (!boss.isCharging && (!boss.lastCharge||now-boss.lastCharge>(phase2?1400:2200))) {
       boss.lastCharge=now;
-      const count = phase2 ? 2 : 1;
-      let delay = 0;
+      const count = phase2 ? 3 : 1;
       for (let c=0;c<count;c++) {
         const t2 = alive[Math.floor(Math.random()*alive.length)];
         const tx=t2.x, ty=t2.y;
-        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:delay*1000});
+        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:c*400});
         setTimeout(()=>{
           if(!boss)return;
           boss.isCharging=true;
@@ -82,32 +82,39 @@ const BOSS_AI = {
           const [bx,by]=[cx/cd,cy/cd];
           let ticks=0;
           const iv=setInterval(()=>{
-            if(!boss||ticks++>20){boss.isCharging=false;clearInterval(iv);
-              // 차지 후 부채꼴 탄막
+            if(!boss||ticks++>28){boss.isCharging=false;clearInterval(iv);
+              // 차지 후 8방향 부채꼴 탄막
               const ang=Math.atan2(by,bx);
-              for(let i=-2;i<=2;i++){
-                const a2=ang+i*0.3;
+              for(let i=-3;i<=3;i++){
+                const a2=ang+i*0.28;
                 const pid=`p${room.projId++}`;
-                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*6,vy:Math.sin(a2)*6,dmg:boss.dmg*0.6,ttl:120};
+                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*8,vy:Math.sin(a2)*8,dmg:boss.dmg*0.65,ttl:130};
+              }
+              // phase2: 추가 반대 방향 탄막
+              if(phase2){
+                for(let i=0;i<4;i++){
+                  const a2=ang+Math.PI+(i-1.5)*0.4;
+                  const pid=`p${room.projId++}`;
+                  room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*6,vy:Math.sin(a2)*6,dmg:boss.dmg*0.5,ttl:110};
+                }
               }
               io.to(room.id).emit('bossAction',{type:'spread',x:boss.x,y:boss.y});
               return;
             }
-            boss.x+=bx*10; boss.y+=by*10;
+            boss.x+=bx*22; boss.y+=by*22;
             boss.x=clamp(boss.x,-MAP,MAP); boss.y=clamp(boss.y,-MAP,MAP);
-            alive.forEach(p=>{if(dist(p,boss)<55)damagePlayer(room,p,boss.dmg*1.5);});
+            alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.8);});
           },40);
-        },900+delay*900);
-        delay++;
+        },500+c*400);
       }
     }
-    // 2페이즈: 추가 원형 탄막
-    if (phase2 && (!boss.lastSpin||now-boss.lastSpin>4000)) {
+    // 2페이즈: 원형 탄막 (쿨 단축, 12발)
+    if (phase2 && (!boss.lastSpin||now-boss.lastSpin>2500)) {
       boss.lastSpin=now;
-      for(let i=0;i<8;i++){
-        const a=(i/8)*Math.PI*2;
+      for(let i=0;i<12;i++){
+        const a=(i/12)*Math.PI*2;
         const pid=`p${room.projId++}`;
-        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,dmg:boss.dmg*0.5,ttl:110};
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,dmg:boss.dmg*0.55,ttl:120};
       }
       io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
     }
@@ -400,8 +407,21 @@ function checkUpgradesDone(room) {
   }
 }
 
+function reviveDead(room) {
+  Object.values(room.players).forEach(p=>{
+    if(p.hp<=0){
+      p.hp=Math.floor(p.maxHp*0.5);
+      io.to(room.id).emit('playerRevived',{playerId:p.id,hp:p.hp,maxHp:p.maxHp});
+    }
+  });
+}
+
 function onWaveClear(room) {
   room.waveTotal=0;
+  reviveDead(room); // 사망 플레이어 50% 체력으로 부활
+  // 업그레이드 화면 전환 시 모든 투사체 제거
+  room.projectiles={}; room.projId=0;
+  io.to(room.id).emit('clearAllProjectiles');
   const sc=STAGE_CONFIG[room.stage];
   if(room.wave>=sc.waves.length-1){
     io.to(room.id).emit('preBossWarning',{stage:room.stage+1,name:sc.boss.name});
@@ -414,6 +434,7 @@ function onWaveClear(room) {
 }
 
 function onBossDead(room) {
+  reviveDead(room); // 보스 처치 시 사망 플레이어 부활
   io.to(room.id).emit('bossDead',{stage:room.stage+1});
   room.boss=null; room.projectiles={};
   if(room.stage>=STAGE_CONFIG.length-1){

@@ -110,6 +110,13 @@
     #game-clear p{color:#9080c0;font-size:15px;letter-spacing:3px;margin-bottom:36px;}
     #controls{position:absolute;bottom:10px;right:14px;font-size:11px;color:#3a3a5a;
               z-index:5;pointer-events:none;line-height:1.9;}
+
+    /* 사망 오버레이 */
+    #death-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.65);display:flex;
+                   flex-direction:column;align-items:center;justify-content:center;z-index:25;pointer-events:none;}
+    #death-overlay.hidden{display:none;}
+    #death-overlay h2{font-size:38px;color:#ff4444;text-shadow:0 0 24px #ff0000;margin-bottom:14px;letter-spacing:4px;}
+    #death-overlay p{color:#cc8888;font-size:13px;letter-spacing:2px;}
   </style>
 </head>
 <body>
@@ -167,6 +174,17 @@
     <div class="skill-name" id="sk-x-name">스킬</div>
     <div class="skill-cool hidden" id="sk-x-cool">-</div>
   </div>
+  <div class="skill-slot" id="sk-space">
+    <div class="skill-key">SPC</div>
+    <div class="skill-name">대시</div>
+    <div class="skill-cool hidden" id="sk-space-cool">-</div>
+  </div>
+</div>
+
+<!-- 사망 오버레이 -->
+<div id="death-overlay" class="hidden">
+  <h2>영혼 소멸</h2>
+  <p>파티원이 웨이브를 클리어하면 부활합니다</p>
 </div>
 
 <!-- 보스 HP -->
@@ -187,7 +205,7 @@
 
 <!-- 조작 안내 -->
 <div id="controls" class="hidden">
-  방향키 이동 &nbsp;|&nbsp; Z 기본공격 &nbsp;|&nbsp; X 스킬
+  방향키 이동 &nbsp;|&nbsp; Z 기본공격 &nbsp;|&nbsp; X 스킬 &nbsp;|&nbsp; SPACE 대시
 </div>
 
 <div id="game-over" class="hidden">
@@ -206,12 +224,18 @@ const socket = io();
 let myId=null, myRole=null, myHp=100, myMaxHp=100;
 let mySpeedMult=1, mySkillMult=1;
 let isReady=false, roomId=null, gameScene=null;
+let myDead=false;
 
 const MAP=1100;
 const ROLE_COLOR={attacker:0xff5533,tanker:0x3366ff,healer:0x33ff88};
 const ROLE_HEX={attacker:'#ff5533',tanker:'#3366ff',healer:'#33ff88'};
+const FLAME_COLORS={
+  attacker:{outer:0xff4400,mid:0xff2200,core:0xff8800,dot:0xffdd88,glow:0xff6600},
+  tanker:  {outer:0x2255ff,mid:0x4488ff,core:0x88bbff,dot:0xddeeff,glow:0x3366ff},
+  healer:  {outer:0x22cc66,mid:0x33ff88,core:0x88ffcc,dot:0xeeffee,glow:0x44ff99},
+};
 const ROLE_NAME={attacker:'공격적인 영혼',tanker:'강인한 영혼',healer:'도움의 영혼'};
-const BASE_DMG={attacker:35,tanker:20,healer:0};
+const BASE_DMG={attacker:44,tanker:20,healer:0};
 
 // 스킬 쿨타임 (ms)
 const SKILL_Z_CD={attacker:300,tanker:500,healer:800};
@@ -282,6 +306,7 @@ socket.on('waveStart',data=>{
   notify(`STAGE ${data.stage}  WAVE ${data.wave}/${data.totalWaves}`,3000);
 });
 socket.on('waveClear',()=>notify('WAVE CLEAR!',2500,'#88ff88'));
+socket.on('clearAllProjectiles',()=>{if(gameScene)gameScene.clearProjectiles();});
 socket.on('preBossWarning',data=>{notify(`⚠ BOSS : ${data.name}`,4000,'#ff8844');});
 socket.on('bossSpawn',data=>{
   document.getElementById('boss-name').textContent=data.name;
@@ -334,6 +359,25 @@ socket.on('upgradeApplied',data=>{
 socket.on('upgradesDone',()=>document.getElementById('upgrade-panel').classList.add('hidden'));
 socket.on('gameOver',()=>document.getElementById('game-over').classList.remove('hidden'));
 socket.on('gameClear',()=>document.getElementById('game-clear').classList.remove('hidden'));
+
+socket.on('playerDied',data=>{
+  if(data.playerId===myId){
+    myDead=true;
+    document.getElementById('death-overlay').classList.remove('hidden');
+  }
+  if(gameScene)gameScene.onPlayerDied(data.playerId);
+});
+socket.on('playerRevived',data=>{
+  if(data.playerId===myId){
+    myDead=false;
+    myHp=data.hp;myMaxHp=data.maxHp;
+    updateMyHpBar();
+    document.getElementById('death-overlay').classList.add('hidden');
+    notify('✦ 부활! ✦',2000,'#44ff88');
+  }
+  if(gameScene)gameScene.onPlayerRevived(data);
+  updatePartyHpBar(data);
+});
 
 socket.on('partyInvincible',data=>{
   notify('✦ 무적의 시간! ✦',data.duration,'#ffff44');
@@ -459,33 +503,102 @@ class GameScene extends Phaser.Scene {
     this.cursors=this.input.keyboard.createCursorKeys();
     this.keyZ=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.keyX=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    this.keySpace=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.dashCooldown=false;
+  }
+
+  // ===== 도깨비불 생성 =====
+  createFlame(x, y, role){
+    const c = FLAME_COLORS[role] || FLAME_COLORS.attacker;
+    const container = this.add.container(x, y);
+
+    // 외부 글로우 (큰 원)
+    const glow = this.add.circle(0, 0, 26, c.glow, 0.18);
+    container.add(glow);
+
+    // 불꽃 몸체 — setScale로 세로로 늘린 원 (눈물방울 느낌)
+    const body = this.add.circle(0, -2, 13, c.outer, 0.88);
+    body.setScale(0.78, 1.42);
+    container.add(body);
+
+    // 내부 코어 — 더 밝은 색, 조금 더 위
+    const core = this.add.circle(0, -5, 8, c.core, 0.92);
+    core.setScale(0.75, 1.3);
+    container.add(core);
+
+    // 꼭대기 빛점
+    const dot = this.add.circle(0, -14, 3, c.dot, 0.95);
+    container.add(dot);
+
+    container.setDepth(4);
+
+    // 흔들림 — 불꽃이 좌우로 떨리는 느낌
+    this.tweens.add({
+      targets: container,
+      scaleX: { from: 0.95, to: 1.06 },
+      scaleY: { from: 1.02, to: 0.94 },
+      duration: 200 + Math.random()*80,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+    });
+    // 글로우 맥동
+    this.tweens.add({
+      targets: glow,
+      alpha: { from: 0.18, to: 0.38 },
+      duration: 650 + Math.random()*200,
+      yoyo: true, repeat: -1
+    });
+
+    // 위로 떠오르는 불티 파티클
+    const spawnSpark = () => {
+      if(!container.active) return;
+      const sp = this.add.circle(
+        Phaser.Math.Between(-7, 7), 5,
+        Phaser.Math.Between(2, 3), c.glow, 0.8);
+      container.add(sp);
+      this.tweens.add({
+        targets: sp,
+        y: -24 + Phaser.Math.Between(-6, 2),
+        x: sp.x + Phaser.Math.Between(-9, 9),
+        alpha: 0, scale: 0.25,
+        duration: Phaser.Math.Between(420, 820), ease: 'Cubic.out',
+        onComplete: () => { container.remove(sp, true); }
+      });
+      this.time.delayedCall(Phaser.Math.Between(180, 380), spawnSpark);
+    };
+    this.time.delayedCall(Phaser.Math.Between(0, 200), spawnSpark);
+
+    return container;
   }
 
   initGame(players){
     const me=players.find(p=>p.id===myId);if(!me)return;
-    this.soul=this.add.circle(me.x,me.y,14,ROLE_COLOR[me.role]);
-    this.soul.setDepth(3);
+
+    // 물리 바디 (투명 — 충돌/이동 전용)
+    this.soul=this.add.circle(me.x,me.y,14,ROLE_COLOR[me.role],0);
     this.physics.add.existing(this.soul);
     this.soul.body.setCollideWorldBounds(true);
     this.soul.role=me.role;
     this.soul.lastDirX=1;this.soul.lastDirY=0;
     this.soul.playerId=myId;
 
+    // 도깨비불 비주얼
+    this.soulFlame=this.createFlame(me.x,me.y,me.role);
+
     // 벽 충돌
     this.physics.add.collider(this.soul,this.walls);
 
-    this.soulLabel=this.add.text(0,0,'나',{fontSize:'10px',color:'#ffffff',alpha:0.7}).setDepth(4);
+    this.soulLabel=this.add.text(0,0,'나',{fontSize:'10px',color:'#ffffff',alpha:0.7}).setDepth(5);
     this.cameras.main.startFollow(this.soul,true,0.08,0.08);
 
     players.filter(p=>p.id!==myId).forEach(p=>this.addOtherPlayer(p));
   }
 
   addOtherPlayer(p){
-    const s=this.add.circle(p.x,p.y,14,ROLE_COLOR[p.role]);
-    s.setStrokeStyle(2,0xffffff,0.4);s.setDepth(3);
+    const s=this.add.circle(p.x,p.y,1,0x000000,0); // 충돌용 (투명)
     s.playerId=p.id;s.hp=p.hp;s.maxHp=p.maxHp;s.role=p.role;
     s.hpBar=this.add.graphics();
-    s.label=this.add.text(0,0,ROLE_NAME[p.role]?.slice(0,2)||'?',{fontSize:'9px',color:'#aaaaff'}).setDepth(4);
+    s.label=this.add.text(0,0,ROLE_NAME[p.role]?.slice(0,2)||'?',{fontSize:'9px',color:'#aaaaff'}).setDepth(5);
+    s.flame=this.createFlame(p.x,p.y,p.role);
     this.otherPlayers[p.id]=s;
   }
 
@@ -493,20 +606,31 @@ class GameScene extends Phaser.Scene {
 
   update(){
     if(!this.soul||!this.soul.body)return;
-    let vx=0,vy=0;
-    if(this.cursors.left.isDown) vx=-1;
-    if(this.cursors.right.isDown)vx= 1;
-    if(this.cursors.up.isDown)   vy=-1;
-    if(this.cursors.down.isDown) vy= 1;
-    if(vx!==0&&vy!==0){vx*=0.707;vy*=0.707;}
-    this.soul.body.setVelocity(vx*this.baseSpeed,vy*this.baseSpeed);
-    if(vx!==0||vy!==0){this.soul.lastDirX=vx;this.soul.lastDirY=vy;}
-    if(vx!==0||vy!==0)socket.emit('playerMovement',{x:Math.round(this.soul.x),y:Math.round(this.soul.y)});
 
-    if(this.soulLabel)this.soulLabel.setPosition(this.soul.x-8,this.soul.y-26);
+    if(!myDead){
+      let vx=0,vy=0;
+      if(this.cursors.left.isDown) vx=-1;
+      if(this.cursors.right.isDown)vx= 1;
+      if(this.cursors.up.isDown)   vy=-1;
+      if(this.cursors.down.isDown) vy= 1;
+      if(vx!==0&&vy!==0){vx*=0.707;vy*=0.707;}
+      this.soul.body.setVelocity(vx*this.baseSpeed,vy*this.baseSpeed);
+      if(vx!==0||vy!==0){this.soul.lastDirX=vx;this.soul.lastDirY=vy;}
+      if(vx!==0||vy!==0)socket.emit('playerMovement',{x:Math.round(this.soul.x),y:Math.round(this.soul.y)});
+    } else {
+      this.soul.body.setVelocity(0,0);
+    }
+
+    // 도깨비불 위치 동기화
+    if(this.soulFlame)this.soulFlame.setPosition(this.soul.x,this.soul.y);
+    if(this.soulLabel)this.soulLabel.setPosition(this.soul.x-8,this.soul.y-38);
+    // 무적 오라 위치 동기화
+    if(this.invincibleFx)this.invincibleFx.setPosition(this.soul.x,this.soul.y);
 
     Object.values(this.otherPlayers).forEach(s=>{
-      if(s.label)s.label.setPosition(s.x-8,s.y-26);
+      if(s.label)s.label.setPosition(s.x-8,s.y-38);
+      if(s.flame)s.flame.setPosition(s.x,s.y);
+      if(s._invincibleFx)s._invincibleFx.setPosition(s.x,s.y);
       if(s.hpBar)this.drawHpBar(s.hpBar,s.x,s.y,s.hp||100,s.maxHp||100,ROLE_COLOR[s.role]||0x44ff88);
     });
 
@@ -535,8 +659,11 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    if(Phaser.Input.Keyboard.JustDown(this.keyZ)&&!this.zCooldown)this.doZ();
-    if(Phaser.Input.Keyboard.JustDown(this.keyX)&&!this.xCooldown)this.doX();
+    if(!myDead){
+      if(Phaser.Input.Keyboard.JustDown(this.keyZ)&&!this.zCooldown)this.doZ();
+      if(Phaser.Input.Keyboard.JustDown(this.keyX)&&!this.xCooldown)this.doX();
+      if(Phaser.Input.Keyboard.JustDown(this.keySpace)&&!this.dashCooldown)this.doDash();
+    }
   }
 
   // ===== Z — 기본 공격 =====
@@ -580,16 +707,52 @@ class GameScene extends Phaser.Scene {
 
     if(myRole==='attacker'){
       this.launchSlash(x,y,dx,dy,angle);
+      this.xCooldown=true;
+      startCooldown('x',SKILL_X_CD.attacker);
+      this.time.delayedCall(SKILL_X_CD.attacker,()=>{this.xCooldown=false;});
     } else if(myRole==='tanker'){
       socket.emit('useSkill',{type:'tanker_barrier',x,y});
       this.placeBarrier({id:'local_'+Date.now(),x,y,duration:10000});
+      // 쿨타임은 수호물이 사라진 후(10s) 시작 — 2s 재충전
+      this.xCooldown=true;
+      startCooldown('x',10000);
+      this.time.delayedCall(10000,()=>{
+        startCooldown('x',2000);
+        this.time.delayedCall(2000,()=>{this.xCooldown=false;});
+      });
     } else if(myRole==='healer'){
       socket.emit('useSkill',{type:'healer_invincible',x,y});
+      this.xCooldown=true;
+      startCooldown('x',SKILL_X_CD.healer);
+      this.time.delayedCall(SKILL_X_CD.healer,()=>{this.xCooldown=false;});
+    }
+  }
+
+  // ===== 대시 =====
+  doDash(){
+    if(!this.soul)return;
+    const dx=this.soul.lastDirX||1, dy=this.soul.lastDirY||0;
+    const len=Math.hypot(dx,dy)||1;
+    const nx=dx/len, ny=dy/len;
+    const newX=Phaser.Math.Clamp(this.soul.x+nx*200,-MAP+40,MAP-40);
+    const newY=Phaser.Math.Clamp(this.soul.y+ny*200,-MAP+40,MAP-40);
+
+    // 잔상 효과
+    for(let i=1;i<=4;i++){
+      const tx=this.soul.x+nx*i*48, ty=this.soul.y+ny*i*48;
+      const trail=this.add.circle(tx,ty,10,ROLE_COLOR[myRole],0.35);
+      trail.setDepth(3);
+      this.tweens.add({targets:trail,alpha:0,scale:0.2,duration:280,
+        onComplete:()=>trail.destroy()});
     }
 
-    this.xCooldown=true;
-    startCooldown('x',SKILL_X_CD[myRole]||8000);
-    this.time.delayedCall(SKILL_X_CD[myRole]||8000,()=>{this.xCooldown=false;});
+    // 위치 이동
+    this.soul.body.reset(newX,newY);
+    socket.emit('playerMovement',{x:Math.round(newX),y:Math.round(newY)});
+
+    this.dashCooldown=true;
+    startCooldown('space',1500);
+    this.time.delayedCall(1500,()=>{this.dashCooldown=false;});
   }
 
   // 공격자 이동 검기
@@ -617,32 +780,48 @@ class GameScene extends Phaser.Scene {
     if(type==='tanker_barrier'||type==='healer_invincible')return; // 별도 처리
 
     if(role==='attacker'&&type==='z'){
-      // 반원형(부채꼴) 공격 — Z 기본 공격
+      // 반원형 공격 — Z 기본 공격
       this.drawFanAttack(x,y,dirX,dirY,angle,isMine);
     } else if(role==='tanker'&&type==='z'){
-      const ex=x+dirX*85,ey=y+dirY*85;
-      const eff=this.add.rectangle(ex,ey,170,30,0x8899ff,0.55);
-      eff.setRotation(angle);eff.setDepth(4);
-      this.tweens.add({targets:eff,alpha:0,duration:200,onComplete:()=>eff.destroy()});
-      if(isMine){
-        this.checkFanHit(x,y,dirX,dirY,150,Math.PI*0.3,BASE_DMG[role]);
+      // 부채꼴 공격 (시각 = 히트박스 일치)
+      const radius=150, halfAngle=Math.PI*0.3;
+      const g=this.add.graphics();g.setDepth(5);
+      g.fillStyle(0x8899ff,0.45);
+      g.beginPath();g.moveTo(x,y);
+      for(let i=0;i<=10;i++){
+        const a=angle-halfAngle+(i/10)*halfAngle*2;
+        g.lineTo(x+Math.cos(a)*radius,y+Math.sin(a)*radius);
       }
+      g.closePath();g.fillPath();
+      g.lineStyle(2,0xaabbff,0.7);g.strokePath();
+      this.tweens.add({targets:g,alpha:0,duration:200,onComplete:()=>g.destroy()});
+      if(isMine)this.checkFanHit(x,y,dirX,dirY,radius,halfAngle,BASE_DMG[role]);
     } else if(role==='healer'&&type==='z'){
-      const eff=this.add.circle(x,y,110,0x33ff88,0.2);eff.setDepth(4);
-      this.tweens.add({targets:eff,radius:140,alpha:0,duration:600,onComplete:()=>eff.destroy()});
+      // 범위 1.5배: 165px → 210px 확장
+      const eff=this.add.circle(x,y,165,0x33ff88,0.18);eff.setDepth(4);
+      this.tweens.add({targets:eff,radius:210,alpha:0,duration:600,onComplete:()=>eff.destroy()});
       if(isMine){
+        const healRange=180;
         socket.emit('healPlayer',{amount:15});
         Object.values(this.otherPlayers).forEach(op=>{
-          if(Phaser.Math.Distance.Between(x,y,op.x,op.y)<120)
+          if(Phaser.Math.Distance.Between(x,y,op.x,op.y)<healRange)
             socket.emit('healPlayer',{targetId:op.playerId,amount:15});
         });
+        // 범위 내 적에게 소량 데미지
+        const healDmg=20*(mySkillMult||1);
+        Object.entries(this.enemies).forEach(([id,s])=>{
+          if(Phaser.Math.Distance.Between(x,y,s.x,s.y)<healRange)
+            socket.emit('hitEnemy',{enemyId:id,damage:healDmg});
+        });
+        if(this.boss&&Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y)<healRange)
+          socket.emit('hitEnemy',{enemyId:'boss',damage:healDmg});
       }
     }
   }
 
-  // 부채꼴 공격 (공격자 기본 Z)
+  // 부채꼴 공격 (공격자 기본 Z) — 반경 160px
   drawFanAttack(x,y,dx,dy,angle,isMine){
-    const radius=110, halfAngle=Math.PI*0.5; // 반원(180도의 절반 → 각 90도씩)
+    const radius=160, halfAngle=Math.PI*0.5;
     const g=this.add.graphics();
     g.setDepth(5);
     g.fillStyle(0xff3300,0.45);
@@ -692,21 +871,25 @@ class GameScene extends Phaser.Scene {
     }});
   }
 
-  // ===== 무적 이펙트 =====
+  // ===== 무적 이펙트 — 각 캐릭터를 감싸며 따라다님 =====
   startInvincibleFx(duration){
     if(this.invincibleFx)this.invincibleFx.destroy();
     if(!this.soul)return;
-    this.invincibleFx=this.add.circle(0,0,22,0xffff00,0.2);
+    // 내 캐릭터 오라
+    this.invincibleFx=this.add.circle(this.soul.x,this.soul.y,26,0xffff00,0.2);
     this.invincibleFx.setDepth(6);
-    this.invincibleFx.setStrokeStyle(3,0xffff00,0.8);
-    this.tweens.add({targets:this.invincibleFx,alpha:0,duration:500,yoyo:true,repeat:duration/1000-1});
-    this.time.delayedCall(duration,()=>{if(this.invincibleFx){this.invincibleFx.destroy();this.invincibleFx=null;}});
-    // 다른 플레이어에게도 표시
+    this.invincibleFx.setStrokeStyle(3,0xffff00,0.9);
+    this.tweens.add({targets:this.invincibleFx,alpha:0,duration:400,yoyo:true,repeat:-1});
+    this.time.delayedCall(duration,()=>{
+      if(this.invincibleFx){this.invincibleFx.destroy();this.invincibleFx=null;}
+    });
+    // 파티원 오라
     Object.values(this.otherPlayers).forEach(op=>{
-      const fx=this.add.circle(op.x,op.y,22,0xffff00,0.2);
-      fx.setStrokeStyle(3,0xffff00,0.8);fx.setDepth(6);
-      this.tweens.add({targets:fx,alpha:0,duration:500,yoyo:true,repeat:duration/1000-1});
-      this.time.delayedCall(duration,()=>fx.destroy());
+      if(op._invincibleFx)op._invincibleFx.destroy();
+      const fx=this.add.circle(op.x,op.y,26,0xffff00,0.2);
+      fx.setStrokeStyle(3,0xffff00,0.9);fx.setDepth(6);
+      this.tweens.add({targets:fx,alpha:0,duration:400,yoyo:true,repeat:-1});
+      this.time.delayedCall(duration,()=>{fx.destroy();if(op._invincibleFx===fx)op._invincibleFx=null;});
       op._invincibleFx=fx;
     });
   }
@@ -719,6 +902,11 @@ class GameScene extends Phaser.Scene {
   }
 
   // ===== 서버 이벤트 핸들러 =====
+  clearProjectiles(){
+    Object.values(this.projectiles).forEach(s=>{if(s&&s.active)s.destroy();});
+    this.projectiles={};
+  }
+
   onWaveStart(enemies){
     Object.values(this.enemies).forEach(s=>{if(s.hpBar)s.hpBar.destroy();s.destroy();});
     this.enemies={};
@@ -845,11 +1033,38 @@ class GameScene extends Phaser.Scene {
     if(this.movingSlash){this.movingSlash.visual.destroy();this.movingSlash=null;}
   }
 
+  onPlayerDied(playerId){
+    if(playerId===myId){
+      // 내 캐릭터 어둡게
+      if(this.soulFlame)this.soulFlame.setAlpha(0.22);
+    } else {
+      const s=this.otherPlayers[playerId];
+      if(s&&s.flame)s.flame.setAlpha(0.22);
+    }
+  }
+
+  onPlayerRevived(data){
+    if(data.playerId===myId){
+      if(this.soulFlame)this.soulFlame.setAlpha(1);
+      if(this.soul){
+        // 부활 플래시
+        const flash=this.add.circle(this.soul.x,this.soul.y,44,0x44ff88,0.7);
+        flash.setDepth(7);
+        this.tweens.add({targets:flash,alpha:0,scale:2.5,duration:600,onComplete:()=>flash.destroy()});
+      }
+    } else {
+      const s=this.otherPlayers[data.playerId];
+      if(s&&s.flame)s.flame.setAlpha(1);
+    }
+  }
+
   onPlayerMoved(data){const s=this.otherPlayers[data.playerId];if(s){s.x=data.x;s.y=data.y;}}
   onPlayerHpUpdate(data){const s=this.otherPlayers[data.playerId];if(s){s.hp=data.hp;if(data.maxHp)s.maxHp=data.maxHp;}}
   onPlayerLeft(id){
     const s=this.otherPlayers[id];if(!s)return;
-    if(s.hpBar)s.hpBar.destroy();if(s.label)s.label.destroy();s.destroy();
+    if(s.hpBar)s.hpBar.destroy();if(s.label)s.label.destroy();
+    if(s.flame)s.flame.destroy();
+    s.destroy();
     delete this.otherPlayers[id];
     const sl=document.getElementById(`party-${id}`);if(sl)sl.remove();
   }
