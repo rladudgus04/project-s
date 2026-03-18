@@ -7,15 +7,15 @@ app.use(express.static(__dirname + '/public'));
 const MAP = 1100; // 맵 경계 -MAP ~ MAP
 
 const STAGE_CONFIG = [
-  { waves:[{melee:4,ranged:1,hp:80,dmg:8},{melee:6,ranged:2,hp:90,dmg:10},{melee:7,ranged:3,hp:100,dmg:12}],
-    boss:{name:'안개의 수호자',hp:1800,dmg:20,speed:2.2,pattern:'charge'} },
-  { waves:[{melee:6,ranged:3,hp:110,dmg:12},{melee:8,ranged:4,hp:120,dmg:14},{melee:9,ranged:5,hp:130,dmg:16}],
+  { waves:[{melee:24,ranged:21,hp:80,dmg:8},{melee:26,ranged:22,hp:90,dmg:10},{melee:27,ranged:23,hp:100,dmg:12}],
+    boss:{name:'안개의 수호자',hp:1800,dmg:20,speed:8.8,pattern:'charge'} },
+  { waves:[{melee:26,ranged:23,hp:110,dmg:12},{melee:28,ranged:24,hp:120,dmg:14},{melee:29,ranged:25,hp:130,dmg:16}],
     boss:{name:'심연의 파수꾼',hp:3000,dmg:28,speed:2.4,pattern:'spin'} },
-  { waves:[{melee:8,ranged:4,hp:140,dmg:15},{melee:10,ranged:5,hp:150,dmg:18},{melee:12,ranged:6,hp:160,dmg:20}],
+  { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
     boss:{name:'황혼의 군주',hp:4200,dmg:32,speed:2.4,pattern:'cross'} },
-  { waves:[{melee:10,ranged:5,hp:170,dmg:20},{melee:12,ranged:7,hp:180,dmg:22},{melee:14,ranged:8,hp:200,dmg:25}],
+  { waves:[{melee:30,ranged:25,hp:170,dmg:20},{melee:32,ranged:27,hp:180,dmg:22},{melee:34,ranged:28,hp:200,dmg:25}],
     boss:{name:'혼돈의 지배자',hp:5400,dmg:38,speed:2.6,pattern:'berserk'} },
-  { waves:[{melee:12,ranged:7,hp:200,dmg:25},{melee:15,ranged:9,hp:220,dmg:28},{melee:18,ranged:10,hp:250,dmg:30}],
+  { waves:[{melee:32,ranged:27,hp:200,dmg:25},{melee:35,ranged:29,hp:220,dmg:28},{melee:38,ranged:30,hp:250,dmg:30}],
     boss:{name:'어둠의 왕',hp:10500,dmg:45,speed:2.8,pattern:'final',isFinal:true} },
 ];
 
@@ -119,49 +119,69 @@ const BOSS_AI = {
     const [nx,ny]=norm(dx,dy);
     const phase2 = boss.hp < boss.maxHp*0.5;
 
-    // 거리 유지 이동
-    const keep=200;
-    if(d>keep+50){boss.x+=nx*boss.speed;boss.y+=ny*boss.speed;}
-    else if(d<keep-50){boss.x-=nx*boss.speed;boss.y-=ny*boss.speed;}
+    // 거리 유지 이동 (이동속도 phase에 따라 증가)
+    const moveSpd = phase2 ? boss.speed*1.8 : boss.speed;
+    const keep=220;
+    if(d>keep+40){boss.x+=nx*moveSpd;boss.y+=ny*moveSpd;}
+    else if(d<keep-40){boss.x-=nx*moveSpd;boss.y-=ny*moveSpd;}
 
-    // 스파이럴 탄막 (0.3s마다 한 발씩 각도 회전)
-    if(!boss.lastSpiral||now-boss.lastSpiral>300) {
+    // 스파이럴 탄막: 매 150ms마다 발사 (phase2는 더 빠름)
+    const spiralCD = phase2 ? 150 : 220;
+    if(!boss.lastSpiral||now-boss.lastSpiral>spiralCD) {
       boss.lastSpiral=now;
-      boss.spiralAngle=(boss.spiralAngle||0)+(phase2?0.45:0.28);
-      const pid=`p${room.projId++}`;
-      room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-        vx:Math.cos(boss.spiralAngle)*5.5,vy:Math.sin(boss.spiralAngle)*5.5,dmg:boss.dmg*0.5,ttl:140};
-      if(phase2){
-        const a2=boss.spiralAngle+Math.PI;
-        const pid2=`p${room.projId++}`;
-        room.projectiles[pid2]={id:pid2,x:boss.x,y:boss.y,vx:Math.cos(a2)*5.5,vy:Math.sin(a2)*5.5,dmg:boss.dmg*0.5,ttl:140};
+      boss.spiralAngle=(boss.spiralAngle||0)+(phase2?0.6:0.38);
+      // 기본: 1발, phase2: 반대방향 동시 2발
+      const arms = phase2 ? 2 : 1;
+      for(let arm=0;arm<arms;arm++){
+        const a=boss.spiralAngle+arm*Math.PI;
+        const pid=`p${room.projId++}`;
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+          vx:Math.cos(a)*6,vy:Math.sin(a)*6,dmg:boss.dmg*0.5,ttl:150};
       }
     }
-    // 유도탄 (4s마다)
-    if(!boss.lastHoming||now-boss.lastHoming>(phase2?2500:4500)) {
+
+    // 유도탄: 플레이어 수와 무관하게 count발 발사 (같은 플레이어에게 여러 발 가능)
+    const homingCD = phase2 ? 2200 : 4000;
+    if(!boss.lastHoming||now-boss.lastHoming>homingCD) {
       boss.lastHoming=now;
-      const count=phase2?6:4;
-      alive.slice(0,count).forEach((p,i)=>{
+      const count = phase2 ? 6 : 3;
+      for(let i=0;i<count;i++){
+        // alive 배열 순환 — 플레이어가 적어도 count발 모두 발사
+        const p = alive[i % alive.length];
         setTimeout(()=>{
           if(!boss||!room.projectiles)return;
           const ang=Math.atan2(p.y-boss.y,p.x-boss.x);
           const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(ang)*4,vy:Math.sin(ang)*4,
-            dmg:boss.dmg*0.7,ttl:160,homing:p.id};
-        },i*300);
-      });
+          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+            vx:Math.cos(ang)*4.5,vy:Math.sin(ang)*4.5,
+            dmg:boss.dmg*0.7,ttl:180,homing:p.id};
+        },i*250);
+      }
       io.to(room.id).emit('bossAction',{type:'homing_warn',x:boss.x,y:boss.y});
     }
-    // 순간이동 (2페이즈, 6s마다)
-    if(phase2&&(!boss.lastTele||now-boss.lastTele>6000)){
+
+    // 순간이동: 플레이어 주변 랜덤 위치로 (원점 기준 버그 수정)
+    const teleCD = phase2 ? 4500 : 7000;
+    if(!boss.lastTele||now-boss.lastTele>teleCD){
       boss.lastTele=now;
-      const angle=Math.random()*Math.PI*2, r=200+Math.random()*300;
-      boss.x=clamp(Math.cos(angle)*r,-MAP,MAP);
-      boss.y=clamp(Math.sin(angle)*r,-MAP,MAP);
+      // 랜덤 플레이어 근처 200~400px로 순간이동
+      const tp = alive[Math.floor(Math.random()*alive.length)];
+      const tAngle=Math.random()*Math.PI*2;
+      const tDist=220+Math.random()*180;
+      boss.x=clamp(tp.x+Math.cos(tAngle)*tDist, -MAP+80, MAP-80);
+      boss.y=clamp(tp.y+Math.sin(tAngle)*tDist, -MAP+80, MAP-80);
+      // 순간이동 직후 8방향 탄막 폭발
+      for(let i=0;i<8;i++){
+        const ba=(i/8)*Math.PI*2;
+        const pid=`p${room.projId++}`;
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+          vx:Math.cos(ba)*5,vy:Math.sin(ba)*5,dmg:boss.dmg*0.55,ttl:120};
+      }
       io.to(room.id).emit('bossAction',{type:'teleport',x:boss.x,y:boss.y});
     }
-    // 근접시 타격
-    if(d<80&&(!boss.lastMelee||now-boss.lastMelee>1200)){
+
+    // 근접 타격
+    if(d<75&&(!boss.lastMelee||now-boss.lastMelee>1000)){
       boss.lastMelee=now;
       damagePlayer(room,target,boss.dmg);
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
@@ -350,8 +370,8 @@ function spawnWave(room) {
     const y=clamp(cy+Math.sin(angle)*r,-MAP+50,MAP-50);
     room.enemies[id]={id,type,x,y,hp,maxHp:hp,dmg,speed};
   };
-  for(let i=0;i<wc.melee;i++)  spawn('melee', wc.hp,         wc.dmg,     4);
-  for(let i=0;i<wc.ranged;i++) spawn('ranged', wc.hp*0.6|0,  wc.dmg*0.8, 3);
+  for(let i=0;i<wc.melee;i++)  spawn('melee', wc.hp,         wc.dmg,     8);
+  for(let i=0;i<wc.ranged;i++) spawn('ranged', wc.hp*0.6|0,  wc.dmg*0.8, 5);
 
   io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:room.wave+1,
     totalWaves:sc.waves.length,enemies:room.enemies});
@@ -444,6 +464,12 @@ setInterval(()=>{
         }
         proj.x+=proj.vx; proj.y+=proj.vy;
         if(--proj.ttl<=0||Math.abs(proj.x)>MAP+200||Math.abs(proj.y)>MAP+200){dead.push(proj.id);return;}
+        // 배리어 충돌 — 투사체 차단
+        if(room.barriers){
+          for(const bar of room.barriers){
+            if(dist(proj,bar)<220){dead.push(proj.id);io.to(room.id).emit('projDestroy',proj.id);return;}
+          }
+        }
         alive.forEach(p=>{
           if(proj.hit?.has(p.id))return;
           if(dist(proj,p)<22){
