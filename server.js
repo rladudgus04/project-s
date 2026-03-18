@@ -7,16 +7,16 @@ app.use(express.static(__dirname + '/public'));
 const MAP = 1100; // 맵 경계 -MAP ~ MAP
 
 const STAGE_CONFIG = [
-  { waves:[{melee:24,ranged:21,hp:80,dmg:8},{melee:26,ranged:22,hp:90,dmg:10},{melee:27,ranged:23,hp:100,dmg:12}],
-    boss:{name:'안개의 수호자',hp:1800,dmg:20,speed:8.8,pattern:'charge'} },
+  { waves:[{melee:36,ranged:10,hp:80,dmg:8},{melee:36,ranged:18,hp:90,dmg:10},{melee:30,ranged:23,hp:100,dmg:12}],
+    boss:{name:'안개의 수호자',hp:1800,dmg:18,speed:8.8,pattern:'charge'} },
   { waves:[{melee:26,ranged:23,hp:110,dmg:12},{melee:28,ranged:24,hp:120,dmg:14},{melee:29,ranged:25,hp:130,dmg:16}],
-    boss:{name:'심연의 파수꾼',hp:3000,dmg:28,speed:2.4,pattern:'spin'} },
+    boss:{name:'심연의 파수꾼',hp:3000,dmg:20,speed:6.0,pattern:'spin'} },
   { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
-    boss:{name:'황혼의 군주',hp:4200,dmg:32,speed:2.4,pattern:'cross'} },
+    boss:{name:'황혼의 군주',hp:4200,dmg:22,speed:5.5,pattern:'cross'} },
   { waves:[{melee:30,ranged:25,hp:170,dmg:20},{melee:32,ranged:27,hp:180,dmg:22},{melee:34,ranged:28,hp:200,dmg:25}],
-    boss:{name:'혼돈의 지배자',hp:5400,dmg:38,speed:2.6,pattern:'berserk'} },
+    boss:{name:'혼돈의 지배자',hp:5400,dmg:24,speed:7.0,pattern:'berserk'} },
   { waves:[{melee:32,ranged:27,hp:200,dmg:25},{melee:35,ranged:29,hp:220,dmg:28},{melee:38,ranged:30,hp:250,dmg:30}],
-    boss:{name:'어둠의 왕',hp:10500,dmg:45,speed:2.8,pattern:'final',isFinal:true} },
+    boss:{name:'어둠의 왕',hp:10500,dmg:30,speed:7.5,pattern:'final',isFinal:true} },
 ];
 
 const UPGRADES = [
@@ -42,10 +42,40 @@ function getLobbyState(room) {
 // ===== 대미지 =====
 function damagePlayer(room, player, base) {
   if (!player || player.hp<=0 || player.invincible) return;
+  // 수호물 내부 무적
+  if(room.barriers && room.barriers.length>0){
+    for(const bar of room.barriers){if(dist(player,bar)<250)return;}
+  }
   const mult = (player.defenseMult||1) * (player.role==='tanker'?0.5:1);
   player.hp = Math.max(0, player.hp - base*mult);
   io.to(room.id).emit('playerHealthUpdate',{playerId:player.id,hp:Math.floor(player.hp),maxHp:player.maxHp});
   if(player.hp<=0) io.to(room.id).emit('playerDied',{playerId:player.id});
+}
+
+// ===== 그로기 공통 헬퍼 (모든 보스 2페이즈에서 15초마다) =====
+function tickGroggy(room, boss, now) {
+  // 그로기 해제
+  if(boss.groggy && now >= boss.groggyEnd) {
+    boss.groggy = false;
+    boss.isCharging = false;
+    io.to(room.id).emit('bossAction',{type:'groggyEnd',x:boss.x,y:boss.y});
+  }
+  // 2페이즈 진입 추적 (HP 50% 이하)
+  if(boss.hp < boss.maxHp*0.5 && !boss.phase2Entry) {
+    boss.phase2Entry = now;
+  }
+  // 15초마다 그로기 발동
+  if(boss.phase2Entry && !boss.groggy) {
+    const idx = Math.floor((now - boss.phase2Entry) / 15000);
+    if(idx > 0 && idx > (boss.lastGroggyIdx||0)) {
+      boss.lastGroggyIdx = idx;
+      boss.groggy = true;
+      boss.groggyEnd = now + 8000;
+      boss.isCharging = false;
+      io.to(room.id).emit('bossAction',{type:'groggy',x:boss.x,y:boss.y,duration:8000});
+    }
+  }
+  return boss.groggy;
 }
 
 // ===== 보스 패턴 =====
@@ -56,6 +86,14 @@ const BOSS_AI = {
     const dx=target.x-boss.x, dy=target.y-boss.y, d=Math.hypot(dx,dy);
     const [nx,ny]=norm(dx,dy);
     const phase2 = boss.hp < boss.maxHp*0.5;
+
+    // 2페이즈 진입 알림
+    if(phase2 && !boss.phase2Announced) {
+      boss.phase2Announced = true;
+      io.to(room.id).emit('bossAction',{type:'phase2',x:boss.x,y:boss.y});
+    }
+    // 그로기 (15초마다)
+    if(tickGroggy(room, boss, now)) return;
 
     // 기본 이동
     if (!boss.isCharging && d>80) {
@@ -74,7 +112,7 @@ const BOSS_AI = {
       for (let c=0;c<count;c++) {
         const t2 = alive[Math.floor(Math.random()*alive.length)];
         const tx=t2.x, ty=t2.y;
-        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:c*400});
+        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:c*2000});
         setTimeout(()=>{
           if(!boss)return;
           boss.isCharging=true;
@@ -88,14 +126,14 @@ const BOSS_AI = {
               for(let i=-3;i<=3;i++){
                 const a2=ang+i*0.28;
                 const pid=`p${room.projId++}`;
-                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*8,vy:Math.sin(a2)*8,dmg:boss.dmg*0.65,ttl:130};
+                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*8,vy:Math.sin(a2)*8,dmg:boss.dmg*0.3,ttl:130};
               }
               // phase2: 추가 반대 방향 탄막
               if(phase2){
                 for(let i=0;i<4;i++){
                   const a2=ang+Math.PI+(i-1.5)*0.4;
                   const pid=`p${room.projId++}`;
-                  room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*6,vy:Math.sin(a2)*6,dmg:boss.dmg*0.5,ttl:110};
+                  room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*6,vy:Math.sin(a2)*6,dmg:boss.dmg*0.25,ttl:110};
                 }
               }
               io.to(room.id).emit('bossAction',{type:'spread',x:boss.x,y:boss.y});
@@ -103,7 +141,7 @@ const BOSS_AI = {
             }
             boss.x+=bx*22; boss.y+=by*22;
             boss.x=clamp(boss.x,-MAP,MAP); boss.y=clamp(boss.y,-MAP,MAP);
-            alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.8);});
+            alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*0.8);});
           },40);
         },500+c*400);
       }
@@ -121,6 +159,7 @@ const BOSS_AI = {
   },
 
   spin(room, boss, alive, now) {
+    if(tickGroggy(room, boss, now)) return;
     const target = alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
     const dx=target.x-boss.x, dy=target.y-boss.y, d=Math.hypot(dx,dy);
     const [nx,ny]=norm(dx,dy);
@@ -168,7 +207,7 @@ const BOSS_AI = {
     }
 
     // 순간이동: 플레이어 주변 랜덤 위치로 (원점 기준 버그 수정)
-    const teleCD = phase2 ? 4500 : 7000;
+    const teleCD = phase2 ? 3000 : 5000;
     if(!boss.lastTele||now-boss.lastTele>teleCD){
       boss.lastTele=now;
       // 랜덤 플레이어 근처 200~400px로 순간이동
@@ -196,6 +235,7 @@ const BOSS_AI = {
   },
 
   cross(room, boss, alive, now) {
+    if(tickGroggy(room, boss, now)) return;
     const target=alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
     const dx=target.x-boss.x,dy=target.y-boss.y,d=Math.hypot(dx,dy);
     const [nx,ny]=norm(dx,dy);
@@ -224,8 +264,8 @@ const BOSS_AI = {
       });
       io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:phase2?2:1});
     }
-    // 차지 (4s마다)
-    if(!boss.lastCharge||now-boss.lastCharge>4000){
+    // 차지 (2.8s마다, 속도 상승)
+    if(!boss.lastCharge||now-boss.lastCharge>2800){
       boss.lastCharge=now;
       const t2=alive[Math.floor(Math.random()*alive.length)];
       const tx=t2.x,ty=t2.y;
@@ -237,7 +277,7 @@ const BOSS_AI = {
         let ticks=0;
         const iv=setInterval(()=>{
           if(!boss||ticks++>22){boss.isCharging=false;clearInterval(iv);return;}
-          boss.x+=cx*11;boss.y+=cy*11;
+          boss.x+=cx*18;boss.y+=cy*18;
           boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
           alive.forEach(p=>{if(dist(p,boss)<55)damagePlayer(room,p,boss.dmg*1.4);});
         },40);
@@ -246,6 +286,7 @@ const BOSS_AI = {
   },
 
   berserk(room, boss, alive, now) {
+    if(tickGroggy(room, boss, now)) return;
     const target=alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
     const dx=target.x-boss.x,dy=target.y-boss.y,d=Math.hypot(dx,dy);
     const [nx,ny]=norm(dx,dy);
@@ -283,6 +324,7 @@ const BOSS_AI = {
   },
 
   final(room, boss, alive, now) {
+    if(tickGroggy(room, boss, now)) return;
     const target=alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
     const dx=target.x-boss.x,dy=target.y-boss.y,d=Math.hypot(dx,dy);
     const [nx,ny]=norm(dx,dy);
@@ -370,18 +412,32 @@ function spawnWave(room) {
   const cx=ps.reduce((s,p)=>s+p.x,0)/(ps.length||1);
   const cy=ps.reduce((s,p)=>s+p.y,0)/(ps.length||1);
 
-  const spawn=(type,hp,dmg,speed)=>{
-    const id=`e${gEid++}`;
-    const angle=Math.random()*Math.PI*2, r=450+Math.random()*200;
-    const x=clamp(cx+Math.cos(angle)*r,-MAP+50,MAP-50);
-    const y=clamp(cy+Math.sin(angle)*r,-MAP+50,MAP-50);
-    room.enemies[id]={id,type,x,y,hp,maxHp:hp,dmg,speed};
-  };
-  for(let i=0;i<wc.melee;i++)  spawn('melee', wc.hp,         wc.dmg,     8);
-  for(let i=0;i<wc.ranged;i++) spawn('ranged', wc.hp*0.6|0,  wc.dmg*0.8, 5);
+  // 등장 대기열 셔플 (혼합 등장)
+  const toSpawn=[];
+  for(let i=0;i<wc.melee;i++)  toSpawn.push({type:'melee', hp:wc.hp,         dmg:wc.dmg,     speed:8});
+  for(let i=0;i<wc.ranged;i++) toSpawn.push({type:'ranged',hp:wc.hp*0.6|0,   dmg:wc.dmg*0.8, speed:5});
+  for(let i=toSpawn.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toSpawn[i],toSpawn[j]]=[toSpawn[j],toSpawn[i]];}
 
   io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:room.wave+1,
-    totalWaves:sc.waves.length,enemies:room.enemies});
+    totalWaves:sc.waves.length,enemies:{}});
+
+  // 배치 스폰 (8마리씩 1.5초 간격)
+  const BATCH=8, DELAY=1500;
+  let spawned=0;
+  (function spawnBatch(){
+    if(!rooms[room.id]||room.state!=='playing')return;
+    const end=Math.min(spawned+BATCH,toSpawn.length);
+    for(let i=spawned;i<end;i++){
+      const e=toSpawn[i];
+      const id=`e${gEid++}`;
+      const angle=Math.random()*Math.PI*2, r=450+Math.random()*200;
+      const x=clamp(cx+Math.cos(angle)*r,-MAP+50,MAP-50);
+      const y=clamp(cy+Math.sin(angle)*r,-MAP+50,MAP-50);
+      room.enemies[id]={id,type:e.type,x,y,hp:e.hp,maxHp:e.hp,dmg:e.dmg,speed:e.speed};
+    }
+    spawned=end;
+    if(spawned<toSpawn.length) setTimeout(spawnBatch,DELAY);
+  })();
 }
 
 function spawnBoss(room) {
@@ -435,15 +491,16 @@ function onWaveClear(room) {
 
 function onBossDead(room) {
   reviveDead(room); // 보스 처치 시 사망 플레이어 부활
+  room.boss=null; room.projectiles={}; room.projId=0;
   io.to(room.id).emit('bossDead',{stage:room.stage+1});
-  room.boss=null; room.projectiles={};
+  io.to(room.id).emit('clearAllProjectiles'); // 남은 투사체 모두 제거
   if(room.stage>=STAGE_CONFIG.length-1){
     setTimeout(()=>{room.state='game_clear';io.to(room.id).emit('gameClear');},2500);
   } else {
     setTimeout(()=>{
       room.stage++;room.wave=0;room.state='upgrade';
       io.to(room.id).emit('stageCleared',{nextStage:room.stage+1});
-      offerUpgrades(room);
+      setTimeout(()=>offerUpgrades(room),3200); // 스테이지 전환 애니메이션 완료 후 업그레이드
     },2000);
   }
 }
@@ -488,7 +545,7 @@ setInterval(()=>{
         // 배리어 충돌 — 투사체 차단
         if(room.barriers){
           for(const bar of room.barriers){
-            if(dist(proj,bar)<220){dead.push(proj.id);io.to(room.id).emit('projDestroy',proj.id);return;}
+            if(dist(proj,bar)<250){dead.push(proj.id);io.to(room.id).emit('projDestroy',proj.id);return;}
           }
         }
         alive.forEach(p=>{
@@ -517,7 +574,7 @@ setInterval(()=>{
         let blocked=false;
         if(room.barriers){
           room.barriers.forEach(bar=>{
-            if(dist(enemy,bar)<220){
+            if(dist(enemy,bar)<250){
               const [bx,by]=norm(enemy.x-bar.x,enemy.y-bar.y);
               enemy.x+=bx*3; enemy.y+=by*3; blocked=true;
             }
@@ -550,6 +607,24 @@ setInterval(()=>{
             room.projectiles[pid]={id:pid,x:enemy.x,y:enemy.y,vx:nx*4.5,vy:ny*4.5,dmg:enemy.dmg,ttl:140};
             io.to(room.id).emit('enemyShoot',{id:pid,x:enemy.x,y:enemy.y,vx:nx*4.5,vy:ny*4.5});
           }
+        }
+
+        // ── 분리 행동: 적끼리 겹침 방지 ──
+        const SEP_RADIUS=42;
+        let sepX=0,sepY=0;
+        Object.values(room.enemies).forEach(other=>{
+          if(other.id===enemy.id)return;
+          const sd=dist(enemy,other);
+          if(sd<SEP_RADIUS&&sd>0){
+            const [sx,sy]=norm(enemy.x-other.x,enemy.y-other.y);
+            const force=(SEP_RADIUS-sd)/SEP_RADIUS;
+            sepX+=sx*force*5;
+            sepY+=sy*force*5;
+          }
+        });
+        if(sepX!==0||sepY!==0){
+          enemy.x=clamp(enemy.x+sepX,-MAP+30,MAP-30);
+          enemy.y=clamp(enemy.y+sepY,-MAP+30,MAP-30);
         }
       });
       io.to(room.id).emit('enemyUpdate',room.enemies);
@@ -642,7 +717,8 @@ io.on('connection',socket=>{
       if(e.hp<=0){delete room.enemies[data.enemyId];room.waveKilled++;io.to(room.id).emit('enemyDeath',data.enemyId);}
     }
     if((room.state==='boss'||room.state==='playing')&&room.boss&&data.enemyId==='boss'){
-      room.boss.hp=Math.max(0,room.boss.hp-dmg);
+      const groggyMult = room.boss.groggy ? 1.5 : 1; // 그로기 중 피해 1.5배
+      room.boss.hp=Math.max(0,room.boss.hp-dmg*groggyMult);
       if(room.boss.hp<=0)onBossDead(room);
     }
   });
@@ -669,6 +745,16 @@ io.on('connection',socket=>{
         setTimeout(()=>{p.invincible=false;},5000);
       });
       io.to(room.id).emit('partyInvincible',{duration:5000});
+      // 1초마다 HP 2 회복 (5회)
+      for(let i=1;i<=5;i++){
+        setTimeout(()=>{
+          if(!rooms[room.id])return;
+          Object.values(room.players).forEach(p=>{
+            if(p.hp>0){p.hp=Math.min(p.maxHp,p.hp+2);
+              io.to(room.id).emit('playerHealthUpdate',{playerId:p.id,hp:Math.floor(p.hp),maxHp:p.maxHp});}
+          });
+        },i*1000);
+      }
     }
     // 탱커 배리어
     if(data.type==='tanker_barrier'){

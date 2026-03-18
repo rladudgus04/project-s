@@ -111,6 +111,11 @@
     #controls{position:absolute;bottom:10px;right:14px;font-size:11px;color:#3a3a5a;
               z-index:5;pointer-events:none;line-height:1.9;}
 
+    /* 피격 오버레이 */
+    #hit-overlay{position:absolute;inset:0;pointer-events:none;z-index:22;
+      background:radial-gradient(ellipse at center, rgba(255,0,0,0) 35%, rgba(220,0,0,0.72) 100%);
+      opacity:0;}
+
     /* 사망 오버레이 */
     #death-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.65);display:flex;
                    flex-direction:column;align-items:center;justify-content:center;z-index:25;pointer-events:none;}
@@ -181,6 +186,9 @@
   </div>
 </div>
 
+<!-- 피격 오버레이 -->
+<div id="hit-overlay"></div>
+
 <!-- 사망 오버레이 -->
 <div id="death-overlay" class="hidden">
   <h2>영혼 소멸</h2>
@@ -236,10 +244,18 @@ const FLAME_COLORS={
 };
 const ROLE_NAME={attacker:'공격적인 영혼',tanker:'강인한 영혼',healer:'도움의 영혼'};
 const BASE_DMG={attacker:44,tanker:20,healer:0};
+// 스테이지별 배경 테마
+const STAGE_THEMES=[
+  {bg:'#020008',floor:0x08000f,grid:0x1a0a3a}, // 스테이지 1: 안개 보라
+  {bg:'#010015',floor:0x000612,grid:0x0a1040}, // 스테이지 2: 심연 청색
+  {bg:'#120006',floor:0x0a0004,grid:0x2a0818}, // 스테이지 3: 황혼 홍색
+  {bg:'#0d0800',floor:0x090500,grid:0x281800}, // 스테이지 4: 혼돈 황금
+  {bg:'#000000',floor:0x020002,grid:0x0a000a}, // 스테이지 5: 어둠 공허
+];
 
 // 스킬 쿨타임 (ms)
 const SKILL_Z_CD={attacker:300,tanker:500,healer:800};
-const SKILL_X_CD={attacker:6000,tanker:12000,healer:15000};
+const SKILL_X_CD={attacker:6000,tanker:14500,healer:15000};
 const SKILL_X_NAME={attacker:'검기 날리기',tanker:'수호물 설치',healer:'무적의 시간'};
 
 // ===== 타이틀 UI =====
@@ -325,7 +341,10 @@ socket.on('bossDead',()=>{
   if(gameScene)gameScene.onBossDead();
   notify('BOSS DEFEATED!',2500,'#ffcc44');
 });
-socket.on('stageCleared',data=>notify(`STAGE CLEAR! → STAGE ${data.nextStage}`,3000,'#c8a0ff'));
+socket.on('stageCleared',data=>{
+  notify(`STAGE CLEAR! → STAGE ${data.nextStage}`,3000,'#c8a0ff');
+  if(gameScene)gameScene.onStageCleared(data.nextStage);
+});
 
 socket.on('enemyUpdate',enemies=>{if(gameScene)gameScene.onEnemyUpdate(enemies);});
 socket.on('enemyDeath',id=>{if(gameScene)gameScene.onEnemyDeath(id);});
@@ -336,7 +355,11 @@ socket.on('projDestroy',id=>{if(gameScene)gameScene.onProjDestroy(id);});
 socket.on('playerMoved',data=>{if(gameScene)gameScene.onPlayerMoved(data);});
 socket.on('skillUsed',data=>{if(gameScene)gameScene.renderSkillEffect(data,false);});
 socket.on('playerHealthUpdate',data=>{
-  if(data.playerId===myId){myHp=data.hp;myMaxHp=data.maxHp;updateMyHpBar();}
+  if(data.playerId===myId){
+    const prev=myHp;
+    myHp=data.hp;myMaxHp=data.maxHp;updateMyHpBar();
+    if(data.hp<prev)showHitEffect(); // 피격 효과
+  }
   if(gameScene)gameScene.onPlayerHpUpdate(data);
   updatePartyHpBar(data);
 });
@@ -346,17 +369,37 @@ socket.on('upgradeOffer',opts=>{
   opts.forEach(u=>{
     const d=document.createElement('div');d.className='upcard';
     d.innerHTML=`<h3>${u.name}</h3><p>${u.desc}</p>`;
-    d.onclick=()=>{socket.emit('selectUpgrade',u.id);document.getElementById('upgrade-panel').classList.add('hidden');};
+    d.onclick=()=>{
+      socket.emit('selectUpgrade',u.id);
+      const panel=document.getElementById('upgrade-panel');
+      panel.style.transition='opacity 0.3s ease';
+      panel.style.opacity='0';
+      setTimeout(()=>{panel.classList.add('hidden');panel.style.opacity='';panel.style.transition='';},300);
+    };
     cards.appendChild(d);
   });
-  document.getElementById('upgrade-panel').classList.remove('hidden');
+  // 서서히 등장
+  const panel=document.getElementById('upgrade-panel');
+  panel.style.opacity='0';
+  panel.classList.remove('hidden');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    panel.style.transition='opacity 0.6s ease';
+    panel.style.opacity='1';
+  }));
 });
 socket.on('upgradeApplied',data=>{
   myHp=data.hp;myMaxHp=data.maxHp;
   mySpeedMult=data.speedMult||mySpeedMult;mySkillMult=data.skillMult||mySkillMult;
   updateMyHpBar();if(gameScene)gameScene.updateSpeed(mySpeedMult);
 });
-socket.on('upgradesDone',()=>document.getElementById('upgrade-panel').classList.add('hidden'));
+socket.on('upgradesDone',()=>{
+  const panel=document.getElementById('upgrade-panel');
+  if(!panel.classList.contains('hidden')){
+    panel.style.transition='opacity 0.3s ease';
+    panel.style.opacity='0';
+    setTimeout(()=>{panel.classList.add('hidden');panel.style.opacity='';panel.style.transition='';},300);
+  }
+});
 socket.on('gameOver',()=>document.getElementById('game-over').classList.remove('hidden'));
 socket.on('gameClear',()=>document.getElementById('game-clear').classList.remove('hidden'));
 
@@ -425,6 +468,20 @@ function notify(msg,ms=2000,color='#ffcc44'){
   clearTimeout(notifyTimer);notifyTimer=setTimeout(()=>el.classList.add('hidden'),ms);
 }
 
+// 피격 화면 효과
+let hitFadeTimer=null;
+function showHitEffect(){
+  const el=document.getElementById('hit-overlay');
+  el.style.transition='none';
+  el.style.opacity='1';
+  clearTimeout(hitFadeTimer);
+  hitFadeTimer=setTimeout(()=>{
+    el.style.transition='opacity 0.4s ease';
+    el.style.opacity='0';
+  },55);
+  if(gameScene)gameScene.triggerHitFx();
+}
+
 // 스킬 쿨타임 표시
 function startCooldown(key,ms){
   const id=`sk-${key}-cool`;
@@ -460,15 +517,15 @@ class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(-MAP,-MAP,MAP*2,MAP*2);
 
     // 배경 격자
-    const g=this.add.graphics();
-    g.lineStyle(1,0x1a0a3a,0.35);
-    for(let x=-MAP;x<=MAP;x+=60){g.moveTo(x,-MAP);g.lineTo(x,MAP);}
-    for(let y=-MAP;y<=MAP;y+=60){g.moveTo(-MAP,y);g.lineTo(MAP,y);}
-    g.strokePath();g.setDepth(-5);
+    this._grid=this.add.graphics();
+    this._grid.lineStyle(1,0x1a0a3a,0.35);
+    for(let x=-MAP;x<=MAP;x+=60){this._grid.moveTo(x,-MAP);this._grid.lineTo(x,MAP);}
+    for(let y=-MAP;y<=MAP;y+=60){this._grid.moveTo(-MAP,y);this._grid.lineTo(MAP,y);}
+    this._grid.strokePath();this._grid.setDepth(-5);
 
     // 바닥 (안쪽 영역 표시)
-    const floor=this.add.rectangle(0,0,MAP*2-80,MAP*2-80,0x08000f,0.5);
-    floor.setDepth(-6);
+    this._floor=this.add.rectangle(0,0,MAP*2-80,MAP*2-80,0x08000f,0.5);
+    this._floor.setDepth(-6);
 
     // 벽 (시각적 + 충돌)
     this.walls=this.physics.add.staticGroup();
@@ -647,6 +704,7 @@ class GameScene extends Phaser.Scene {
         if(Phaser.Math.Distance.Between(ms.x,ms.y,s.x,s.y)<100){
           ms.hitIds.add(id);
           socket.emit('hitEnemy',{enemyId:id,damage:BASE_DMG[myRole]*2.5*(mySkillMult||1)*(this.damageMult||1)});
+          this.spawnHitEffect(s.x,s.y);
         }
       };
       Object.entries(this.enemies).forEach(([id,s])=>checkHit(s,id));
@@ -717,8 +775,8 @@ class GameScene extends Phaser.Scene {
       this.xCooldown=true;
       startCooldown('x',10000);
       this.time.delayedCall(10000,()=>{
-        startCooldown('x',2000);
-        this.time.delayedCall(2000,()=>{this.xCooldown=false;});
+        startCooldown('x',4500);
+        this.time.delayedCall(4500,()=>{this.xCooldown=false;});
       });
     } else if(myRole==='healer'){
       socket.emit('useSkill',{type:'healer_invincible',x,y});
@@ -810,11 +868,15 @@ class GameScene extends Phaser.Scene {
         // 범위 내 적에게 소량 데미지
         const healDmg=20*(mySkillMult||1);
         Object.entries(this.enemies).forEach(([id,s])=>{
-          if(Phaser.Math.Distance.Between(x,y,s.x,s.y)<healRange)
+          if(Phaser.Math.Distance.Between(x,y,s.x,s.y)<healRange){
             socket.emit('hitEnemy',{enemyId:id,damage:healDmg});
+            this.spawnHitEffect(s.x,s.y,0x44ff88);
+          }
         });
-        if(this.boss&&Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y)<healRange)
+        if(this.boss&&Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y)<healRange){
           socket.emit('hitEnemy',{enemyId:'boss',damage:healDmg});
+          this.spawnHitEffect(this.boss.x,this.boss.y,0x44ff88);
+        }
       }
     }
   }
@@ -850,6 +912,7 @@ class GameScene extends Phaser.Scene {
       while(diff<-Math.PI)diff+=Math.PI*2;
       if(Math.abs(diff)<=halfAngle){
         socket.emit('hitEnemy',{enemyId:id,damage:baseDmg*(mySkillMult||1)});
+        this.spawnHitEffect(s.x,s.y);
       }
     };
     Object.entries(this.enemies).forEach(([id,s])=>check(s,id));
@@ -857,8 +920,55 @@ class GameScene extends Phaser.Scene {
   }
 
   // ===== 배리어 =====
+  // ===== 피격 이펙트 =====
+  triggerHitFx(){
+    this.cameras.main.shake(160,0.008);
+    if(!this.soul)return;
+    const x=this.soul.x,y=this.soul.y;
+    // 붉은 충격파
+    const flash=this.add.circle(x,y,30,0xff0000,0.65);flash.setDepth(9);
+    this.tweens.add({targets:flash,alpha:0,scale:2.2,duration:220,ease:'Cubic.out',
+      onComplete:()=>flash.destroy()});
+    // 피격 스파크 6개
+    for(let i=0;i<6;i++){
+      const sp=this.add.circle(x,y,3,0xff3333,0.9);sp.setDepth(9);
+      const a=Math.random()*Math.PI*2;
+      this.tweens.add({targets:sp,x:x+Math.cos(a)*40,y:y+Math.sin(a)*40,
+        alpha:0,duration:190,ease:'Cubic.out',onComplete:()=>sp.destroy()});
+    }
+    // 불꽃 순간 흰색 번쩍임
+    if(this.soulFlame){
+      this.tweens.add({targets:this.soulFlame,alpha:0.2,duration:60,yoyo:true,
+        onComplete:()=>this.soulFlame&&this.soulFlame.setAlpha(myDead?0.22:1)});
+    }
+  }
+
+  // ===== 적 타격 이펙트 =====
+  spawnHitEffect(x, y, color=0xffffff){
+    // 충격 링
+    const ring=this.add.circle(x,y,10,color,0.85);ring.setDepth(6);
+    this.tweens.add({targets:ring,scale:3.2,alpha:0,duration:190,ease:'Cubic.out',
+      onComplete:()=>ring.destroy()});
+    // 섬광 크로스 (X자)
+    const g=this.add.graphics();g.setDepth(6);
+    g.lineStyle(2,color,0.9);
+    const sz=10;
+    g.moveTo(x-sz,y-sz);g.lineTo(x+sz,y+sz);
+    g.moveTo(x+sz,y-sz);g.lineTo(x-sz,y+sz);
+    g.strokePath();
+    this.tweens.add({targets:g,alpha:0,scale:1.6,duration:180,ease:'Cubic.out',
+      onComplete:()=>g.destroy()});
+    // 파티클 4개
+    for(let i=0;i<4;i++){
+      const p=this.add.circle(x,y,2.5,color===0xffffff?0xffee88:color,0.95);p.setDepth(6);
+      const a=(i/4)*Math.PI*2+Math.random()*0.5;
+      this.tweens.add({targets:p,x:x+Math.cos(a)*26,y:y+Math.sin(a)*26,
+        alpha:0,scale:0.3,duration:175,ease:'Cubic.out',onComplete:()=>p.destroy()});
+    }
+  }
+
   placeBarrier(data){
-    const ring=this.add.circle(data.x,data.y,200,0x4466ff,0.08);
+    const ring=this.add.circle(data.x,data.y,230,0x4466ff,0.08);
     ring.setStrokeStyle(3,0x8899ff,0.7);ring.setDepth(2);
     const label=this.add.text(data.x-18,data.y-4,'수호물',{fontSize:'10px',color:'#8899ff'}).setDepth(3);
     this.barriers[data.id]={ring,label};
@@ -915,47 +1025,149 @@ class GameScene extends Phaser.Scene {
   }
 
   createEnemySprite(data){
-    const color=data.type==='melee'?0xcc44ff:0xffdd22;
-    const s=this.add.rectangle(data.x,data.y,24,24,color);
-    s.setDepth(2);s.id=data.id;s.hp=data.hp;s.maxHp=data.maxHp;
+    const isMelee = data.type==='melee';
+    const s = this.add.container(data.x, data.y);
+    s.setDepth(2);
+
+    if(isMelee){
+      // 근거리 — 마젠타 다이아몬드 + 외부 오라
+      const aura = this.add.circle(0,0,22,0xaa00cc,0.12);
+      aura.setStrokeStyle(1,0xdd44ff,0.35);
+      s.add(aura);
+
+      const body = this.add.rectangle(0,0,20,20,0xcc22ee,0.95);
+      body.setStrokeStyle(2,0xff88ff,0.9);
+      body.setAngle(45);
+      s.add(body);
+
+      const core = this.add.circle(0,0,5,0xff88ff,0.95);
+      s.add(core);
+
+      // 대각선 스파이크 4개
+      const spikeG = this.add.graphics();
+      spikeG.lineStyle(1.5,0xff66ff,0.6);
+      [[-14,-14],[14,-14],[14,14],[-14,14]].forEach(([px,py])=>{
+        spikeG.moveTo(px*0.4,py*0.4);spikeG.lineTo(px,py);
+      });
+      spikeG.strokePath();
+      s.add(spikeG);
+
+      // 박동 (scaleX·Y 교차)
+      this.tweens.add({targets:s,
+        scaleX:{from:0.88,to:1.1},scaleY:{from:1.1,to:0.88},
+        duration:480+Math.random()*120,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+      this.tweens.add({targets:aura,
+        alpha:{from:0.1,to:0.32},duration:560,yoyo:true,repeat:-1});
+
+    } else {
+      // 원거리 — 황금 원 + 공전 2점
+      const aura = this.add.circle(0,0,20,0xffaa00,0.1);
+      aura.setStrokeStyle(1,0xffdd22,0.3);
+      s.add(aura);
+
+      const body = this.add.circle(0,0,11,0xffcc00,0.92);
+      body.setStrokeStyle(2,0xff8800,0.9);
+      s.add(body);
+
+      // 공전 2점 (컨테이너 회전으로 자동 궤도)
+      const orb1 = this.add.circle(20,0,4,0xffee44,0.9);
+      const orb2 = this.add.circle(-20,0,4,0xffee44,0.9);
+      s.add(orb1); s.add(orb2);
+
+      const core = this.add.circle(0,0,4,0xffffff,0.85);
+      s.add(core);
+
+      // 지속 회전
+      this.tweens.add({targets:s,
+        angle:360,duration:2000+Math.random()*500,repeat:-1,ease:'Linear'});
+      // 코어 펄싱
+      this.tweens.add({targets:body,
+        alpha:{from:0.92,to:0.55},duration:700,yoyo:true,repeat:-1});
+      this.tweens.add({targets:aura,
+        alpha:{from:0.1,to:0.28},duration:900,yoyo:true,repeat:-1});
+    }
+
+    // 스폰 애니메이션
+    s.setScale(0);
+    this.tweens.add({targets:s,scale:1,duration:320,ease:'Back.out'});
+
+    s.id=data.id; s.hp=data.hp; s.maxHp=data.maxHp; s.type=data.type;
     s.hpBar=this.add.graphics();
-    this.physics.add.existing(s,true);
-    this.enemies[data.id]=s;return s;
+    this.enemies[data.id]=s;
+    return s;
   }
 
   onEnemyUpdate(enemies){
     Object.values(enemies).forEach(data=>{
       let s=this.enemies[data.id];
       if(!s)s=this.createEnemySprite(data);
-      s.x=data.x;s.y=data.y;s.hp=data.hp;
-      this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,0xff3333);
+      s.x=data.x; s.y=data.y; s.hp=data.hp;
+      this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,
+        s.type==='melee'?0xcc44ff:0xffcc00);
     });
   }
 
   onEnemyDeath(id){
     const s=this.enemies[id];if(!s)return;
-    for(let i=0;i<6;i++){
-      const p=this.add.circle(s.x,s.y,4,0xcc44ff,0.9);
-      const a=Math.random()*Math.PI*2;
-      this.tweens.add({targets:p,x:s.x+Math.cos(a)*45,y:s.y+Math.sin(a)*45,
-        alpha:0,duration:400,ease:'Cubic.out',onComplete:()=>p.destroy()});
+    const sx=s.x,sy=s.y;
+    const color=s.type==='melee'?0xcc44ff:0xffdd22;
+
+    // 파티클 10개
+    for(let i=0;i<10;i++){
+      const p=this.add.circle(sx,sy,2+Math.random()*3,color,0.9);p.setDepth(5);
+      const a=Math.random()*Math.PI*2, r=28+Math.random()*55;
+      this.tweens.add({targets:p,x:sx+Math.cos(a)*r,y:sy+Math.sin(a)*r,
+        alpha:0,scale:0.2,duration:380+Math.random()*200,ease:'Cubic.out',
+        onComplete:()=>p.destroy()});
     }
-    if(s.hpBar)s.hpBar.destroy();s.destroy();delete this.enemies[id];
+    // 확장 링
+    const ring=this.add.circle(sx,sy,10,color,0);
+    ring.setStrokeStyle(2,color,0.85);ring.setDepth(4);
+    this.tweens.add({targets:ring,scale:3.5,alpha:0,duration:380,ease:'Cubic.out',
+      onComplete:()=>ring.destroy()});
+
+    if(s.hpBar)s.hpBar.destroy();
+    s.destroy();delete this.enemies[id];
   }
 
   onEnemyAttack(data){
-    const ring=this.add.circle(data.x,data.y,8,0xff2200,0.8);ring.setDepth(4);
-    this.tweens.add({targets:ring,radius:38,alpha:0,duration:350,ease:'Cubic.out',onComplete:()=>ring.destroy()});
+    // 충격파 + 스파크
+    const ring=this.add.circle(data.x,data.y,10,0xff3300,0.7);ring.setDepth(5);
+    this.tweens.add({targets:ring,scale:3.8,alpha:0,duration:300,ease:'Cubic.out',
+      onComplete:()=>ring.destroy()});
+    for(let i=0;i<5;i++){
+      const sp=this.add.circle(data.x,data.y,3,0xff6600,0.85);sp.setDepth(5);
+      const a=Math.random()*Math.PI*2;
+      this.tweens.add({targets:sp,x:data.x+Math.cos(a)*28,y:data.y+Math.sin(a)*28,
+        alpha:0,scale:0.2,duration:240,ease:'Cubic.out',onComplete:()=>sp.destroy()});
+    }
   }
 
   onEnemyShoot(data){
-    const s=this.add.circle(data.x,data.y,5,0xffdd22,0.9);s.setDepth(3);
+    // 발사 플래시
+    const flash=this.add.circle(data.x,data.y,10,0xffee22,0.75);flash.setDepth(4);
+    this.tweens.add({targets:flash,scale:2.2,alpha:0,duration:180,
+      onComplete:()=>flash.destroy()});
+    // 투사체
+    const s=this.add.circle(data.x,data.y,6,0xffcc00,0.9);
+    s.setStrokeStyle(1,0xff8800,0.8);s.setDepth(3);
     this.projectiles[data.id]=s;
   }
 
   onProjUpdate(projs){
     Object.values(projs).forEach(p=>{
-      const s=this.projectiles[p.id];if(s){s.x=p.x;s.y=p.y;}
+      let s=this.projectiles[p.id];
+      if(!s){
+        // 보스 투사체 신규 생성 (기존에 렌더링 안 되던 버그 수정)
+        s=this.add.circle(p.x,p.y,7,0xff4400,0.88);
+        s.setStrokeStyle(1,0xff8800,0.6);s.setDepth(3);
+        this.projectiles[p.id]=s;
+        // 생성 플래시
+        const flash=this.add.circle(p.x,p.y,12,0xff6600,0.5);flash.setDepth(3);
+        this.tweens.add({targets:flash,scale:2,alpha:0,duration:200,
+          onComplete:()=>flash.destroy()});
+      }
+      s.x=p.x;s.y=p.y;
     });
   }
 
@@ -967,69 +1179,220 @@ class GameScene extends Phaser.Scene {
 
   onBossSpawn(data){
     if(this.boss){if(this.boss.hpBar)this.boss.hpBar.destroy();this.boss.destroy();}
-    this.boss=this.add.rectangle(0,-400,60,60,0xff2222);
-    this.boss.setStrokeStyle(4,0xff8888,0.8);this.boss.setDepth(3);
+    if(this.bossAura){this.bossAura.destroy();this.bossAura=null;}
+
+    this.boss=this.add.rectangle(0,-400,72,72,0xcc0000);
+    this.boss.setStrokeStyle(5,0xff5555,1);this.boss.setDepth(3);
     this.physics.add.existing(this.boss,true);
     this.boss.hp=data.hp;this.boss.maxHp=data.maxHp;
     this.boss.hpBar=this.add.graphics();
-    this.tweens.add({targets:this.boss,scaleX:1,scaleY:1,from:0,duration:700,ease:'Back.out'});
+
+    // 박동하는 외부 아우라
+    this.bossAura=this.add.circle(0,-400,52,0xff0000,0.06);
+    this.bossAura.setStrokeStyle(2,0xff4444,0.55);this.bossAura.setDepth(2);
+    this.tweens.add({targets:this.bossAura,
+      scale:{from:1,to:1.35},alpha:{from:0.65,to:0.1},
+      duration:900,yoyo:true,repeat:-1});
+
+    // 등장: 3중 확장 링
+    for(let i=0;i<3;i++){
+      this.time.delayedCall(i*180,()=>{
+        const ring=this.add.circle(0,-400,18,0xff2222,0);
+        ring.setStrokeStyle(3,0xff6666,0.9);ring.setDepth(5);
+        this.tweens.add({targets:ring,scale:6,alpha:0,duration:900,ease:'Cubic.out',
+          onComplete:()=>ring.destroy()});
+      });
+    }
+    this.boss.setScale(0);
+    this.tweens.add({targets:this.boss,scaleX:1,scaleY:1,duration:700,ease:'Back.out'});
   }
 
   onBossUpdate(data){
     if(!this.boss)return;
     this.boss.x=data.x;this.boss.y=data.y;this.boss.hp=data.hp;
-    this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-38,data.hp,data.maxHp,0xff2222);
-    if(data.hp/data.maxHp<0.3)this.boss.fillColor=(Date.now()%400<200)?0xff2222:0xff9900;
+    this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-46,data.hp,data.maxHp,0xff2222);
+    if(this.bossAura)this.bossAura.setPosition(data.x,data.y);
+    if(this._groggyRing)this._groggyRing.setPosition(data.x,data.y);
+    if(!this._groggyTween){
+      if(data.hp/data.maxHp<0.3)this.boss.fillColor=(Date.now()%400<200)?0xcc0000:0xff6600;
+      else this.boss.fillColor=0xcc0000;
+    }
   }
 
   onBossAction(data){
+    // ── 차지 경고: 타겟에 십자선 + 확장 경고원 ──
     if(data.type==='charge_warn'){
-      const w=this.add.circle(data.tx,data.ty,28,0xff4400,0.35);w.setDepth(4);
-      this.tweens.add({targets:w,radius:55,alpha:0,duration:900,onComplete:()=>w.destroy()});
+      const tx=data.tx,ty=data.ty;
+      // 경고원 (빠르게 확대 후 소멸)
+      const warn=this.add.circle(tx,ty,22,0xff2200,0.45);
+      warn.setStrokeStyle(3,0xff6600,1);warn.setDepth(6);
+      this.tweens.add({targets:warn,scale:3.2,alpha:0,duration:700,
+        ease:'Cubic.in',onComplete:()=>warn.destroy()});
+      // 십자선
+      const g=this.add.graphics();g.setDepth(6);
+      g.lineStyle(2,0xff4400,0.9);
+      const sz=32;
+      g.moveTo(tx-sz,ty);g.lineTo(tx+sz,ty);
+      g.moveTo(tx,ty-sz);g.lineTo(tx,ty+sz);
+      g.strokePath();
+      this.tweens.add({targets:g,alpha:0,duration:700,onComplete:()=>g.destroy()});
+      // 보스에서 타겟으로 이어지는 선
+      if(this.boss){
+        const line=this.add.graphics();line.setDepth(5);
+        line.lineStyle(1,0xff4400,0.4);
+        line.moveTo(this.boss.x,this.boss.y);line.lineTo(tx,ty);line.strokePath();
+        this.tweens.add({targets:line,alpha:0,duration:600,onComplete:()=>line.destroy()});
+      }
     }
+
+    // ── 탄막 폭발: 다중 링 + 파티클 ──
     if(data.type==='spin'||data.type==='spread'){
       if(!this.boss)return;
-      const r=this.add.circle(this.boss.x,this.boss.y,16,0xff2200,0.6);r.setDepth(4);
-      this.tweens.add({targets:r,radius:70,alpha:0,duration:500,ease:'Cubic.out',onComplete:()=>r.destroy()});
+      const bx=this.boss.x,by=this.boss.y;
+      for(let i=0;i<3;i++){
+        const r=this.add.circle(bx,by,12,0xff3300,i===0?0.65:0.25);
+        r.setStrokeStyle(2,0xff8800,0.8);r.setDepth(4);
+        this.tweens.add({targets:r,scale:5+i*2.5,alpha:0,duration:420+i*160,
+          ease:'Cubic.out',delay:i*90,onComplete:()=>r.destroy()});
+      }
+      for(let i=0;i<10;i++){
+        const p=this.add.circle(bx,by,4,0xff5500,0.9);p.setDepth(4);
+        const a=(i/10)*Math.PI*2;
+        this.tweens.add({targets:p,x:bx+Math.cos(a)*90,y:by+Math.sin(a)*90,
+          alpha:0,scale:0.2,duration:400,ease:'Cubic.out',onComplete:()=>p.destroy()});
+      }
     }
+
+    // ── 순간이동: 이탈 수축 + 도착 폭발 ──
     if(data.type==='teleport'&&this.boss){
+      const ox=this.boss.x,oy=this.boss.y;
+      // 이전 위치 수축 링
+      const exit=this.add.circle(ox,oy,55,0xffffff,0);
+      exit.setStrokeStyle(3,0xaaaaff,0.85);exit.setDepth(5);
+      this.tweens.add({targets:exit,scale:0,alpha:0,duration:280,ease:'Cubic.in',
+        onComplete:()=>exit.destroy()});
+      // 잔상
+      const ghost=this.add.rectangle(ox,oy,72,72,0x660000,0.35);ghost.setDepth(2);
+      this.tweens.add({targets:ghost,alpha:0,duration:350,onComplete:()=>ghost.destroy()});
+
       this.boss.x=data.x;this.boss.y=data.y;
-      const flash=this.add.circle(data.x,data.y,50,0xffffff,0.5);flash.setDepth(5);
-      this.tweens.add({targets:flash,alpha:0,duration:400,onComplete:()=>flash.destroy()});
+
+      // 도착 폭발
+      for(let i=0;i<4;i++){
+        const ring=this.add.circle(data.x,data.y,14,0xffffff,0);
+        ring.setStrokeStyle(2,0xcc88ff,0.9);ring.setDepth(5);
+        this.tweens.add({targets:ring,scale:4.5+i*1.2,alpha:0,duration:520,
+          ease:'Cubic.out',delay:i*70,onComplete:()=>ring.destroy()});
+      }
     }
+
+    // ── 유도탄 경고: 플레이어 주위 경고 링 ──
     if(data.type==='homing_warn'){
       notify('⚠ 유도탄!',1000,'#ff8888');
+      if(this.soul){
+        for(let i=0;i<2;i++){
+          const w=this.add.circle(this.soul.x,this.soul.y,28+i*14,0xff0000,0);
+          w.setStrokeStyle(2,0xff2244,0.85);w.setDepth(5);
+          this.tweens.add({targets:w,scale:1.8,alpha:0,duration:900,delay:i*200,
+            ease:'Sine.out',onComplete:()=>w.destroy()});
+        }
+      }
     }
+
+    // ── 십자 탄막: 이중 글로우 라인 ──
     if(data.type==='cross'){
       if(!this.boss)return;
-      const crossG=this.add.graphics();crossG.setDepth(4);
-      crossG.lineStyle(4,0xff4400,0.6);
-      const sz=300;
-      crossG.moveTo(this.boss.x-sz,this.boss.y);crossG.lineTo(this.boss.x+sz,this.boss.y);
-      crossG.moveTo(this.boss.x,this.boss.y-sz);crossG.lineTo(this.boss.x,this.boss.y+sz);
+      const bx=this.boss.x,by=this.boss.y;
+      const sz=360;
+      // 넓은 글로우 레이어
+      const glow=this.add.graphics();glow.setDepth(4);
+      glow.lineStyle(18,0xff2200,0.18);
+      glow.moveTo(bx-sz,by);glow.lineTo(bx+sz,by);
+      glow.moveTo(bx,by-sz);glow.lineTo(bx,by+sz);
       if(data.phase===2){
-        crossG.moveTo(this.boss.x-sz,this.boss.y-sz);crossG.lineTo(this.boss.x+sz,this.boss.y+sz);
-        crossG.moveTo(this.boss.x+sz,this.boss.y-sz);crossG.lineTo(this.boss.x-sz,this.boss.y+sz);
+        glow.moveTo(bx-sz,by-sz);glow.lineTo(bx+sz,by+sz);
+        glow.moveTo(bx+sz,by-sz);glow.lineTo(bx-sz,by+sz);
       }
-      crossG.strokePath();
-      this.tweens.add({targets:crossG,alpha:0,duration:600,onComplete:()=>crossG.destroy()});
+      glow.strokePath();
+      // 선명한 코어 라인
+      const core=this.add.graphics();core.setDepth(5);
+      core.lineStyle(4,0xff7700,0.95);
+      core.moveTo(bx-sz,by);core.lineTo(bx+sz,by);
+      core.moveTo(bx,by-sz);core.lineTo(bx,by+sz);
+      if(data.phase===2){
+        core.moveTo(bx-sz,by-sz);core.lineTo(bx+sz,by+sz);
+        core.moveTo(bx+sz,by-sz);core.lineTo(bx-sz,by+sz);
+      }
+      core.strokePath();
+      this.tweens.add({targets:[glow,core],alpha:0,duration:700,
+        onComplete:()=>{glow.destroy();core.destroy();}});
     }
+
+    // ── 근접 타격: 충격파 ──
+    if(data.type==='melee'){
+      if(!this.boss)return;
+      const bx=this.boss.x,by=this.boss.y;
+      const impact=this.add.circle(bx,by,20,0xff4400,0.7);impact.setDepth(5);
+      this.tweens.add({targets:impact,scale:3.5,alpha:0,duration:320,ease:'Cubic.out',
+        onComplete:()=>impact.destroy()});
+    }
+
+    // ── 페이즈/특수 알림 ──
     if(data.type==='berserk')notify('⚠ 광폭화!',2000,'#ff4444');
     if(data.type==='berserk3')notify('⚠ 극한 광폭화!!',2000,'#ff0000');
     if(data.type==='phase')notify(`페이즈 ${data.n} 돌입!`,2000,'#ff8844');
+    if(data.type==='phase2')notify('⚠ 2페이즈 돌입!',2500,'#ff8844');
+
+    // ── 그로기 ──
+    if(data.type==='groggy'){
+      notify('★ 그로기! 집중 공격! ★',4000,'#ffff00');
+      if(this.boss){
+        this.boss.fillColor=0xffdd00;
+        this._groggyTween=this.tweens.add({
+          targets:this.boss,
+          angle:{from:-5,to:5},duration:80,yoyo:true,repeat:-1,ease:'Linear'
+        });
+        this._groggyRing=this.add.circle(data.x,data.y,68,0xffff00,0.1);
+        this._groggyRing.setStrokeStyle(3,0xffee00,0.85);this._groggyRing.setDepth(4);
+        this.tweens.add({targets:this._groggyRing,
+          scale:{from:1,to:1.18},alpha:{from:0.85,to:0.25},
+          duration:480,yoyo:true,repeat:-1});
+      }
+    }
+    if(data.type==='groggyEnd'){
+      notify('보스 회복!',1500,'#ff8844');
+      if(this.boss){this.boss.fillColor=0xcc0000;this.boss.setAngle(0);}
+      if(this._groggyTween){this._groggyTween.stop();this._groggyTween=null;}
+      if(this._groggyRing){
+        this.tweens.add({targets:this._groggyRing,alpha:0,duration:300,
+          onComplete:()=>{if(this._groggyRing){this._groggyRing.destroy();this._groggyRing=null;}}});
+      }
+    }
   }
 
   onBossDead(){
     if(!this.boss)return;
-    for(let i=0;i<24;i++){
-      const p=this.add.circle(this.boss.x,this.boss.y,7,0xff2200,0.9);
-      const a=Math.random()*Math.PI*2,r=Math.random()*160;
-      this.tweens.add({targets:p,x:this.boss.x+Math.cos(a)*r,y:this.boss.y+Math.sin(a)*r,
-        alpha:0,duration:900,ease:'Cubic.out',onComplete:()=>p.destroy()});
+    const bx=this.boss.x,by=this.boss.y;
+    // 3웨이브 폭발
+    const colors=[0xff3300,0xff8800,0xffdd00];
+    for(let wave=0;wave<3;wave++){
+      this.time.delayedCall(wave*200,()=>{
+        for(let i=0;i<18;i++){
+          const p=this.add.circle(bx,by,5+wave*2,colors[wave],0.9);p.setDepth(5);
+          const a=Math.random()*Math.PI*2,r=50+Math.random()*160;
+          this.tweens.add({targets:p,x:bx+Math.cos(a)*r,y:by+Math.sin(a)*r,
+            alpha:0,duration:700+wave*220,ease:'Cubic.out',onComplete:()=>p.destroy()});
+        }
+        const ring=this.add.circle(bx,by,18,colors[wave],0);
+        ring.setStrokeStyle(4,colors[wave],0.85);ring.setDepth(5);
+        this.tweens.add({targets:ring,scale:9,alpha:0,duration:650,ease:'Cubic.out',
+          onComplete:()=>ring.destroy()});
+      });
     }
     if(this.boss.hpBar)this.boss.hpBar.destroy();
+    if(this.bossAura){this.bossAura.destroy();this.bossAura=null;}
+    if(this._groggyRing){this._groggyRing.destroy();this._groggyRing=null;}
     this.boss.destroy();this.boss=null;
-    // 이동중 검기도 제거
     if(this.movingSlash){this.movingSlash.visual.destroy();this.movingSlash=null;}
   }
 
@@ -1067,6 +1430,44 @@ class GameScene extends Phaser.Scene {
     s.destroy();
     delete this.otherPlayers[id];
     const sl=document.getElementById(`party-${id}`);if(sl)sl.remove();
+  }
+
+  // ===== 스테이지 전환 애니메이션 =====
+  onStageCleared(nextStage){
+    const theme = STAGE_THEMES[Math.min(nextStage-1, STAGE_THEMES.length-1)];
+    // 카메라 페이드 아웃
+    this.cameras.main.fadeOut(1000,0,0,0);
+    this.cameras.main.once('camerafadeoutcomplete',()=>{
+      // 배경 색상 변경
+      this.cameras.main.setBackgroundColor(theme.bg);
+      // 바닥 색상 변경
+      if(this._floor) this._floor.fillColor=theme.floor;
+      // 그리드 재생성
+      if(this._grid){ this._grid.clear(); this._grid.lineStyle(1,theme.grid,0.35);
+        for(let x=-MAP;x<=MAP;x+=60){this._grid.moveTo(x,-MAP);this._grid.lineTo(x,MAP);}
+        for(let y=-MAP;y<=MAP;y+=60){this._grid.moveTo(-MAP,y);this._grid.lineTo(MAP,y);}
+        this._grid.strokePath();
+      }
+      // 페이드 인
+      this.cameras.main.fadeIn(1200,0,0,0);
+      // 플레이어 주위 도달 파티클
+      const cx=this.soul?this.soul.x:0, cy=this.soul?this.soul.y:0;
+      for(let i=0;i<24;i++){
+        const p=this.add.circle(cx,cy,5,0xc8a0ff,0.9);p.setDepth(8);
+        const a=(i/24)*Math.PI*2;
+        this.tweens.add({targets:p,x:cx+Math.cos(a)*240,y:cy+Math.sin(a)*240,
+          alpha:0,scale:0.2,duration:1000,ease:'Cubic.out',onComplete:()=>p.destroy()});
+      }
+      // 중앙 섬광 링 3개
+      for(let i=0;i<3;i++){
+        this.time.delayedCall(i*150,()=>{
+          const ring=this.add.circle(cx,cy,20,0xc8a0ff,0);
+          ring.setStrokeStyle(3,0xffffff,0.9);ring.setDepth(7);
+          this.tweens.add({targets:ring,scale:8+i*2,alpha:0,duration:900,
+            ease:'Cubic.out',onComplete:()=>ring.destroy()});
+        });
+      }
+    });
   }
 }
 
