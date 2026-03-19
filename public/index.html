@@ -855,7 +855,9 @@ function startCooldown(key,ms){
 class GameScene extends Phaser.Scene {
   constructor(){super('GameScene');}
 
-  preload(){}
+  preload(){
+    for(let i=1;i<=8;i++) this.load.image(`boss1_${i}`,`/assets/enemy/boss1/cow${i}.png`);
+  }
 
   create(){
     gameScene=this;
@@ -1608,9 +1610,19 @@ class GameScene extends Phaser.Scene {
   onBossSpawn(data){
     if(this.boss){if(this.boss.hpBar)this.boss.hpBar.destroy();this.boss.destroy();}
     if(this.bossAura){this.bossAura.destroy();this.bossAura=null;}
+    if(this._bossChargeAnim){this._bossChargeAnim.remove();this._bossChargeAnim=null;}
+    this.bossStage=data.stage;
+    this._bossAnimFrame=0;
 
-    this.boss=this.add.rectangle(0,-400,72,72,0xcc0000);
-    this.boss.setStrokeStyle(5,0xff5555,1);this.boss.setDepth(3);
+    if(data.stage===1){
+      // 안개의 수호자 — 스프라이트 이미지 사용
+      this.boss=this.add.image(0,-400,'boss1_1');
+      this.boss.setDisplaySize(88,88);
+    } else {
+      this.boss=this.add.rectangle(0,-400,72,72,0xcc0000);
+      this.boss.setStrokeStyle(5,0xff5555,1);
+    }
+    this.boss.setDepth(3);
     this.physics.add.existing(this.boss,true);
     this.boss.hp=data.hp;this.boss.maxHp=data.maxHp;
     this.boss.hpBar=this.add.graphics();
@@ -1642,14 +1654,36 @@ class GameScene extends Phaser.Scene {
     if(this.bossAura)this.bossAura.setPosition(data.x,data.y);
     if(this._groggyRing)this._groggyRing.setPosition(data.x,data.y);
     if(!this._groggyTween){
-      if(data.hp/data.maxHp<0.3)this.boss.fillColor=(Date.now()%400<200)?0xcc0000:0xff6600;
-      else this.boss.fillColor=0xcc0000;
+      if(this.bossStage===1){
+        if(data.hp/data.maxHp<0.3)this.boss.setTint((Date.now()%400<200)?0xffffff:0xff8844);
+        else this.boss.clearTint();
+      } else {
+        if(data.hp/data.maxHp<0.3)this.boss.fillColor=(Date.now()%400<200)?0xcc0000:0xff6600;
+        else this.boss.fillColor=0xcc0000;
+      }
     }
   }
 
   onBossAction(data){
     // ── 차지 경고: 타겟에 십자선 + 확장 경고원 ──
     if(data.type==='charge_warn'){
+      // 안개의 수호자 차지 프레임 애니메이션 (8장 순환)
+      if(this.bossStage===1&&this.boss){
+        if(this._bossChargeAnim){this._bossChargeAnim.remove();this._bossChargeAnim=null;}
+        this._bossAnimFrame=0;
+        this._bossChargeAnim=this.time.addEvent({
+          delay:60, loop:true,
+          callback:()=>{
+            this._bossAnimFrame=(this._bossAnimFrame+1)%8;
+            if(this.boss)this.boss.setTexture(`boss1_${this._bossAnimFrame+1}`);
+          }
+        });
+        // 차지 종료 후 1프레임으로 복귀
+        this.time.delayedCall(1400,()=>{
+          if(this._bossChargeAnim){this._bossChargeAnim.remove();this._bossChargeAnim=null;}
+          if(this.boss)this.boss.setTexture('boss1_1');
+        });
+      }
       const tx=data.tx,ty=data.ty;
       // 경고원 (빠르게 확대 후 소멸)
       const warn=this.add.circle(tx,ty,22,0xff2200,0.45);
@@ -1775,7 +1809,7 @@ class GameScene extends Phaser.Scene {
     if(data.type==='groggy'){
       notify('★ 그로기! 집중 공격! ★',4000,'#ffff00');
       if(this.boss){
-        this.boss.fillColor=0xffdd00;
+        if(this.bossStage===1)this.boss.setTint(0xffdd00);else this.boss.fillColor=0xffdd00;
         this._groggyTween=this.tweens.add({
           targets:this.boss,
           angle:{from:-5,to:5},duration:80,yoyo:true,repeat:-1,ease:'Linear'
@@ -1789,7 +1823,10 @@ class GameScene extends Phaser.Scene {
     }
     if(data.type==='groggyEnd'){
       notify('보스 회복!',1500,'#ff8844');
-      if(this.boss){this.boss.fillColor=0xcc0000;this.boss.setAngle(0);}
+      if(this.boss){
+        if(this.bossStage===1)this.boss.clearTint();else this.boss.fillColor=0xcc0000;
+        this.boss.setAngle(0);
+      }
       if(this._groggyTween){this._groggyTween.stop();this._groggyTween=null;}
       if(this._groggyRing){
         this.tweens.add({targets:this._groggyRing,alpha:0,duration:300,
@@ -1820,6 +1857,7 @@ class GameScene extends Phaser.Scene {
     if(this.boss.hpBar)this.boss.hpBar.destroy();
     if(this.bossAura){this.bossAura.destroy();this.bossAura=null;}
     if(this._groggyRing){this._groggyRing.destroy();this._groggyRing=null;}
+    if(this._bossChargeAnim){this._bossChargeAnim.remove();this._bossChargeAnim=null;}
     this.boss.destroy();this.boss=null;
     if(this.movingSlash){this.movingSlash.visual.destroy();this.movingSlash=null;}
   }
