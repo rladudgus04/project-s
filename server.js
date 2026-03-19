@@ -14,14 +14,14 @@ const STAGE_CONFIG = [
   { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
     boss:{name:'황혼의 군주',hp:4200,dmg:22,speed:8.8,pattern:'cross'} },
   { waves:[{melee:30,ranged:25,hp:170,dmg:20},{melee:32,ranged:27,hp:180,dmg:22},{melee:34,ranged:28,hp:200,dmg:25}],
-    boss:{name:'혼돈의 지배자',hp:5400,dmg:24,speed:8.8,pattern:'berserk'} },
+    boss:{name:'혼돈의 지배자',hp:5400,dmg:50,speed:8.8,pattern:'berserk'} },
   { waves:[{melee:32,ranged:27,hp:200,dmg:25},{melee:35,ranged:29,hp:220,dmg:28},{melee:38,ranged:30,hp:250,dmg:30}],
-    boss:{name:'어둠의 왕',hp:10500,dmg:30,speed:9.0,pattern:'final',isFinal:true} },
+    boss:{name:'어둠의 왕',hp:10500,dmg:100,speed:9.0,pattern:'final',isFinal:true} },
 ];
 
 const UPGRADES = [
   { id:'dmg',   name:'영혼의 불꽃',   desc:'공격 데미지 +20%',      apply:p=>{p.damageMult=(p.damageMult||1)*1.2;} },
-  { id:'def',   name:'수호의 갑옷',   desc:'받는 데미지 -10%',      apply:p=>{p.defenseMult=(p.defenseMult||1)*0.9;} },
+  { id:'def',   name:'수호의 갑옷',   desc:'받는 데미지 -3%',       apply:p=>{p.defenseMult=(p.defenseMult||1)*0.97;} },
   { id:'regen', name:'재생의 결정',   desc:'5초마다 HP 10 회복',    apply:p=>{p.regenRate=(p.regenRate||0)+10;} },
   { id:'cd',    name:'노련한 솜씨',   desc:'스킬 쿨타임 10% 감소',  apply:p=>{p.cdMult=(p.cdMult||1)*0.9;} },
   { id:'aspd',  name:'영혼 가속',     desc:'공격 속도 15% 증가',    apply:p=>{p.aspdMult=(p.aspdMult||1)*1.15;} },
@@ -35,18 +35,26 @@ const ITEMS_LIST = [
   { id:'swiftBoots', name:'신속한 장화', type:'boots',  roles:null,                  desc:'이동속도 +10%' },
 ];
 
+// ===== XP 스케일링 (레벨당 20% 증가) =====
+function xpForLevel(lv){ return Math.ceil(100*Math.pow(1.2,lv-1)); }
+function getPlayerLevel(xp){
+  let lv=1,total=0;
+  while(total+xpForLevel(lv)<=xp){total+=xpForLevel(lv);lv++;}
+  return {lv,xpInLevel:xp-total,xpMax:xpForLevel(lv)};
+}
+
 // ===== 맵 생성 (트리 구조) =====
 function generateMap() {
   const nodes=[]; let nid=0;
-  const types=['equipment','mob','upgrade'];
-  const rand=arr=>arr[Math.floor(Math.random()*arr.length)];
+  // 방 비율: 전투 80%, 장비 15%, 성장 5%
+  function randRoomType(){const r=Math.random();return r<0.80?'mob':r<0.95?'equipment':'upgrade';}
   // Floor 0: 시작 (클리어됨)
   nodes.push({id:nid++,type:'start',floor:0,children:[],cleared:true});
   // Floors 1-5: 각 층 2-3개 방 선택
   for(let floor=1;floor<=5;floor++){
     const count=Math.random()<0.4?2:3;
     for(let i=0;i<count;i++)
-      nodes.push({id:nid++,type:rand(types),floor,children:[],cleared:false});
+      nodes.push({id:nid++,type:randRoomType(),floor,children:[],cleared:false});
   }
   // Floor 6: 보스
   nodes.push({id:nid++,type:'boss',floor:6,children:[],cleared:false});
@@ -178,14 +186,14 @@ const BOSS_AI = {
               for(let i=-3;i<=3;i++){
                 const a2=ang+i*0.28;
                 const pid=`p${room.projId++}`;
-                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*8,vy:Math.sin(a2)*8,dmg:boss.dmg*0.3,ttl:130};
+                room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*10.4,vy:Math.sin(a2)*10.4,dmg:boss.dmg*0.3,ttl:130};
               }
               // phase2: 추가 반대 방향 탄막
               if(phase2){
                 for(let i=0;i<4;i++){
                   const a2=ang+Math.PI+(i-1.5)*0.4;
                   const pid=`p${room.projId++}`;
-                  room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*6,vy:Math.sin(a2)*6,dmg:boss.dmg*0.25,ttl:110};
+                  room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a2)*7.8,vy:Math.sin(a2)*7.8,dmg:boss.dmg*0.25,ttl:110};
                 }
               }
               io.to(room.id).emit('bossAction',{type:'spread',x:boss.x,y:boss.y});
@@ -204,7 +212,7 @@ const BOSS_AI = {
       for(let i=0;i<12;i++){
         const a=(i/12)*Math.PI*2;
         const pid=`p${room.projId++}`;
-        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,dmg:boss.dmg*0.55,ttl:120};
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*7.8,vy:Math.sin(a)*7.8,dmg:boss.dmg*0.55,ttl:120};
       }
       io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
     }
@@ -217,71 +225,101 @@ const BOSS_AI = {
     const [nx,ny]=norm(dx,dy);
     const phase2 = boss.hp < boss.maxHp*0.5;
 
-    // 거리 유지 이동 (이동속도 phase에 따라 증가)
-    const moveSpd = phase2 ? boss.speed*1.8 : boss.speed;
-    const keep=220;
+    // 거리 유지 이동
+    const moveSpd = phase2 ? boss.speed*2.0 : boss.speed*1.2;
+    const keep=200;
     if(d>keep+40){boss.x+=nx*moveSpd;boss.y+=ny*moveSpd;}
     else if(d<keep-40){boss.x-=nx*moveSpd;boss.y-=ny*moveSpd;}
 
-    // 스파이럴 탄막: 매 150ms마다 발사 (phase2는 더 빠름)
-    const spiralCD = phase2 ? 150 : 220;
+    // 삼중 스파이럴: 매 100-160ms, 3방향
+    const spiralCD = phase2 ? 100 : 160;
     if(!boss.lastSpiral||now-boss.lastSpiral>spiralCD) {
       boss.lastSpiral=now;
-      boss.spiralAngle=(boss.spiralAngle||0)+(phase2?0.6:0.38);
-      // 기본: 1발, phase2: 반대방향 동시 2발
-      const arms = phase2 ? 2 : 1;
+      boss.spiralAngle=(boss.spiralAngle||0)+(phase2?0.6:0.42);
+      const arms = phase2 ? 3 : 2;
       for(let arm=0;arm<arms;arm++){
-        const a=boss.spiralAngle+arm*Math.PI;
+        const a=boss.spiralAngle+arm*(Math.PI*2/arms);
         const pid=`p${room.projId++}`;
         room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-          vx:Math.cos(a)*6,vy:Math.sin(a)*6,dmg:boss.dmg*0.5,ttl:150};
+          vx:Math.cos(a)*9.75,vy:Math.sin(a)*9.75,dmg:boss.dmg*0.52,ttl:160};
       }
     }
 
-    // 유도탄: 플레이어 수와 무관하게 count발 발사 (같은 플레이어에게 여러 발 가능)
-    const homingCD = phase2 ? 2200 : 4000;
+    // 유도탄: 더 많이, 더 빠르게
+    const homingCD = phase2 ? 1800 : 3200;
     if(!boss.lastHoming||now-boss.lastHoming>homingCD) {
       boss.lastHoming=now;
-      const count = phase2 ? 6 : 3;
+      const count = phase2 ? 8 : 4;
       for(let i=0;i<count;i++){
-        // alive 배열 순환 — 플레이어가 적어도 count발 모두 발사
         const p = alive[i % alive.length];
         setTimeout(()=>{
-          if(!boss||!room.projectiles)return;
-          const ang=Math.atan2(p.y-boss.y,p.x-boss.x);
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          const ang=Math.atan2(p.y-b.y,p.x-b.x);
           const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-            vx:Math.cos(ang)*4.5,vy:Math.sin(ang)*4.5,
-            dmg:boss.dmg*0.7,ttl:180,homing:p.id};
-        },i*250);
+          room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+            vx:Math.cos(ang)*8.45,vy:Math.sin(ang)*8.45,
+            dmg:b.dmg*0.75,ttl:200,homing:p.id};
+        },i*200);
       }
       io.to(room.id).emit('bossAction',{type:'homing_warn',x:boss.x,y:boss.y});
     }
 
-    // 순간이동: 플레이어 주변 랜덤 위치로 (원점 기준 버그 수정)
-    const teleCD = phase2 ? 3000 : 5000;
+    // 순간이동: 더 자주, 16방향 폭발 + phase2 즉시 유도탄
+    const teleCD = phase2 ? 2200 : 4000;
     if(!boss.lastTele||now-boss.lastTele>teleCD){
       boss.lastTele=now;
-      // 랜덤 플레이어 근처 200~400px로 순간이동
-      const tp = alive[Math.floor(Math.random()*alive.length)];
+      const tp=alive[Math.floor(Math.random()*alive.length)];
       const tAngle=Math.random()*Math.PI*2;
-      const tDist=220+Math.random()*180;
-      boss.x=clamp(tp.x+Math.cos(tAngle)*tDist, -MAP+80, MAP-80);
-      boss.y=clamp(tp.y+Math.sin(tAngle)*tDist, -MAP+80, MAP-80);
-      // 순간이동 직후 8방향 탄막 폭발
-      for(let i=0;i<8;i++){
-        const ba=(i/8)*Math.PI*2;
+      const tDist=180+Math.random()*160;
+      boss.x=clamp(tp.x+Math.cos(tAngle)*tDist,-MAP+80,MAP-80);
+      boss.y=clamp(tp.y+Math.sin(tAngle)*tDist,-MAP+80,MAP-80);
+      const burstCount=phase2?16:10;
+      for(let i=0;i<burstCount;i++){
+        const ba=(i/burstCount)*Math.PI*2;
         const pid=`p${room.projId++}`;
         room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-          vx:Math.cos(ba)*5,vy:Math.sin(ba)*5,dmg:boss.dmg*0.55,ttl:120};
+          vx:Math.cos(ba)*8.45,vy:Math.sin(ba)*8.45,dmg:boss.dmg*0.6,ttl:140};
+      }
+      if(phase2){
+        alive.slice(0,2).forEach((p,i)=>{
+          setTimeout(()=>{
+            if(!room.boss||!rooms[room.id])return;
+            const b=room.boss;
+            const ang=Math.atan2(p.y-b.y,p.x-b.x);
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+              vx:Math.cos(ang)*7.15,vy:Math.sin(ang)*7.15,dmg:b.dmg*0.85,ttl:220,homing:p.id};
+          },300+i*220);
+        });
       }
       io.to(room.id).emit('bossAction',{type:'teleport',x:boss.x,y:boss.y});
     }
 
-    // 근접 타격
-    if(d<75&&(!boss.lastMelee||now-boss.lastMelee>1000)){
+    // 별모양 버스트: phase2에서 5.5초마다 3웨이브 12방향
+    if(phase2&&(!boss.lastStar||now-boss.lastStar>5500)){
+      boss.lastStar=now;
+      boss.starRot=(boss.starRot||0);
+      for(let wave=0;wave<3;wave++){
+        setTimeout(()=>{
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          for(let i=0;i<12;i++){
+            const a=(i/12)*Math.PI*2+b.starRot+wave*0.22;
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+              vx:Math.cos(a)*11.05,vy:Math.sin(a)*11.05,dmg:b.dmg*0.58,ttl:155};
+          }
+        },wave*380);
+      }
+      boss.starRot+=Math.PI/10;
+      io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
+    }
+
+    // 근접 타격 (쿨 단축)
+    if(d<75&&(!boss.lastMelee||now-boss.lastMelee>850)){
       boss.lastMelee=now;
-      damagePlayer(room,target,boss.dmg);
+      damagePlayer(room,target,boss.dmg*1.1);
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
   },
@@ -293,57 +331,87 @@ const BOSS_AI = {
     const [nx,ny]=norm(dx,dy);
     const phase2=boss.hp<boss.maxHp*0.45;
 
-    if(!boss.isCharging&&d>90){boss.x+=nx*boss.speed;boss.y+=ny*boss.speed;}
-    if(d<90&&(!boss.lastMelee||now-boss.lastMelee>1100)){
+    if(!boss.isCharging&&d>90){boss.x+=nx*boss.speed*1.3;boss.y+=ny*boss.speed*1.3;}
+    if(d<90&&(!boss.lastMelee||now-boss.lastMelee>850)){
       boss.lastMelee=now;
-      damagePlayer(room,target,boss.dmg);
+      damagePlayer(room,target,boss.dmg*1.2);
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
-    // 검기 날리기 (플레이어 방향으로 빠른 검기 3연발)
-    if(!boss.lastBeam||now-boss.lastBeam>(phase2?1800:3000)){
+
+    // 검기 날리기: 5연발 부채꼴 (버그 수정 + 강화)
+    const beamCD=phase2?1200:2200;
+    if(!boss.lastBeam||now-boss.lastBeam>beamCD){
       boss.lastBeam=now;
       const targets=phase2?alive:[target];
       targets.forEach((tgt,ti)=>{
         const baseAng=Math.atan2(tgt.y-boss.y,tgt.x-boss.x);
-        for(let i=0;i<3;i++){
+        const beamCount=phase2?5:3;
+        const spread=phase2?0.22:0.15;
+        for(let i=0;i<beamCount;i++){
           setTimeout(()=>{
-            if(!boss||!rooms[room.id])return;
-            const ang=baseAng+(i-1)*0.09;
+            if(!room.boss||!rooms[room.id])return; // 버그 수정
+            const b=room.boss;
+            const ang=baseAng+(i-(beamCount-1)/2)*spread;
             const pid=`p${room.projId++}`;
-            room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-              vx:Math.cos(ang)*13,vy:Math.sin(ang)*13,dmg:boss.dmg*0.78,ttl:210};
-          },ti*350+i*110);
+            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+              vx:Math.cos(ang)*22.1,vy:Math.sin(ang)*22.1,dmg:b.dmg*0.88,ttl:220};
+          },ti*280+i*90);
         }
       });
-      // 2페이즈: 8방향 추가 검기
+      // 2페이즈: 회전 12방향 검기
       if(phase2){
-        for(let i=0;i<8;i++){
-          const ang=(i/8)*Math.PI*2;
+        boss.crossRot=(boss.crossRot||0)+Math.PI/8;
+        for(let i=0;i<12;i++){
+          const a=(i/12)*Math.PI*2+boss.crossRot;
           const pid=`p${room.projId++}`;
           room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
-            vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,dmg:boss.dmg*0.55,ttl:190};
+            vx:Math.cos(a)*15.6,vy:Math.sin(a)*15.6,dmg:boss.dmg*0.62,ttl:200};
         }
       }
       io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:phase2?2:1});
     }
-    // 차지 (2.8s마다, 속도 상승)
-    if(!boss.lastCharge||now-boss.lastCharge>2800){
+
+    // 회전 칼날 패턴: 4웨이브 4방향 검기 (서서히 회전)
+    const rotCD=phase2?3500:6000;
+    if(!boss.lastRot||now-boss.lastRot>rotCD){
+      boss.lastRot=now;
+      boss.rotBase=(boss.rotBase||0);
+      for(let wave=0;wave<4;wave++){
+        setTimeout(()=>{
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          for(let i=0;i<4;i++){
+            const a=(i/4)*Math.PI*2+b.rotBase+wave*0.18;
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+              vx:Math.cos(a)*13,vy:Math.sin(a)*13,dmg:b.dmg*0.72,ttl:185};
+          }
+        },wave*260);
+      }
+      boss.rotBase+=Math.PI/5;
+      io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:0});
+    }
+
+    // 차지: 더 자주, 더 빠르게, 경로상 모든 플레이어 타격
+    const chargeCD=phase2?1900:2800;
+    if(!boss.lastCharge||now-boss.lastCharge>chargeCD){
       boss.lastCharge=now;
       const t2=alive[Math.floor(Math.random()*alive.length)];
       const tx=t2.x,ty=t2.y;
       io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:0});
       setTimeout(()=>{
-        if(!boss)return;
-        boss.isCharging=true;
-        const [cx,cy]=norm(tx-boss.x,ty-boss.y);
+        if(!room.boss||!rooms[room.id])return;
+        const b=room.boss;
+        b.isCharging=true;
+        const [cx,cy]=norm(tx-b.x,ty-b.y);
         let ticks=0;
         const iv=setInterval(()=>{
-          if(!boss||ticks++>22){boss.isCharging=false;clearInterval(iv);return;}
-          boss.x+=cx*18;boss.y+=cy*18;
-          boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
-          alive.forEach(p=>{if(dist(p,boss)<55)damagePlayer(room,p,boss.dmg*1.4);});
+          if(!room.boss||ticks++>24){if(room.boss)room.boss.isCharging=false;clearInterval(iv);return;}
+          room.boss.x+=cx*21;room.boss.y+=cy*21;
+          room.boss.x=clamp(room.boss.x,-MAP,MAP);room.boss.y=clamp(room.boss.y,-MAP,MAP);
+          alive.forEach(p=>{if(dist(p,room.boss)<65)damagePlayer(room,p,room.boss.dmg*1.55);});
         },40);
-      },900);
+      },750);
     }
   },
 
@@ -358,30 +426,68 @@ const BOSS_AI = {
     if(!boss.p2ann&&phase2){boss.p2ann=true;io.to(room.id).emit('bossAction',{type:'berserk'});}
     if(!boss.p3ann&&phase3){boss.p3ann=true;io.to(room.id).emit('bossAction',{type:'berserk3'});}
 
-    const spd=phase3?boss.speed*3:phase2?boss.speed*2:boss.speed;
+    const spd=phase3?boss.speed*3.5:phase2?boss.speed*2.5:boss.speed*1.5;
     if(d>65){boss.x+=nx*spd;boss.y+=ny*spd;}
     else{
-      const cd=phase3?300:phase2?600:1100;
+      const cd=phase3?200:phase2?450:900;
       if(!boss.lastMelee||now-boss.lastMelee>cd){
         boss.lastMelee=now;
-        const mult=phase3?2:phase2?1.5:1;
+        const mult=phase3?2.5:phase2?1.8:1.2;
         damagePlayer(room,target,boss.dmg*mult);
+        // 2페이즈+: 주변 플레이어도 광역 타격
+        if(phase2){
+          alive.forEach(p=>{if(p!==target&&dist(p,boss)<110)damagePlayer(room,p,boss.dmg*0.75);});
+        }
         io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
       }
     }
-    // 산탄 (2.5s마다 → 1.2s)
-    const shotCD=phase2?1200:2500;
+
+    // 산탄 강화 (더 넓고 빠르게)
+    const shotCD=phase3?700:phase2?1000:1800;
     if(!boss.lastShot||now-boss.lastShot>shotCD){
       boss.lastShot=now;
       const ang=Math.atan2(dy,dx);
-      const count=phase3?12:phase2?8:5;
-      const spread=phase2?Math.PI:Math.PI*0.6;
+      const count=phase3?16:phase2?10:6;
+      const spread=phase3?Math.PI*1.5:phase2?Math.PI*1.1:Math.PI*0.7;
       for(let i=0;i<count;i++){
         const a=ang+(i/(count-1)-0.5)*spread;
+        const spd2=phase3?11.05:phase2?9.1:7.8;
         const pid=`p${room.projId++}`;
-        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*5.5,vy:Math.sin(a)*5.5,dmg:boss.dmg*0.55,ttl:120};
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*spd2,vy:Math.sin(a)*spd2,dmg:boss.dmg*0.62,ttl:130};
       }
       io.to(room.id).emit('bossAction',{type:'spread',x:boss.x,y:boss.y});
+    }
+
+    // 회전 스핀 공격: 주기적 전방위 버스트
+    const spinCD=phase2?3000:5000;
+    if(!boss.lastSpin||now-boss.lastSpin>spinCD){
+      boss.lastSpin=now;
+      const waves=phase3?3:2;
+      for(let w=0;w<waves;w++){
+        setTimeout(()=>{
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          const wCount=phase3?24:16;
+          for(let i=0;i<wCount;i++){
+            const a=(i/wCount)*Math.PI*2+w*(Math.PI/wCount);
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+              vx:Math.cos(a)*9.75,vy:Math.sin(a)*9.75,dmg:b.dmg*0.58,ttl:140};
+          }
+        },w*480);
+      }
+      io.to(room.id).emit('bossAction',{type:'berserk',x:boss.x,y:boss.y});
+    }
+
+    // 3페이즈 전용: 지뢰 설치 (느린 투사체, 오래 지속)
+    if(phase3&&(!boss.lastMine||now-boss.lastMine>2200)){
+      boss.lastMine=now;
+      for(let i=0;i<5;i++){
+        const a=(i/5)*Math.PI*2+Math.random()*0.4;
+        const pid=`p${room.projId++}`;
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+          vx:Math.cos(a)*3.25,vy:Math.sin(a)*3.25,dmg:boss.dmg*1.15,ttl:420};
+      }
     }
   },
 
@@ -395,70 +501,104 @@ const BOSS_AI = {
     if(!boss.ph2ann&&phase>=2){boss.ph2ann=true;io.to(room.id).emit('bossAction',{type:'phase',n:2});}
     if(!boss.ph3ann&&phase>=3){boss.ph3ann=true;io.to(room.id).emit('bossAction',{type:'phase',n:3});}
 
-    const spd=boss.speed*(0.6+phase*0.35);
+    const spd=boss.speed*(0.85+phase*0.5);
     if(!boss.isCharging&&d>75){boss.x+=nx*spd;boss.y+=ny*spd;}
-    if(d<75&&(!boss.lastMelee||now-boss.lastMelee>Math.max(350,1000/phase))){
+    if(d<75&&(!boss.lastMelee||now-boss.lastMelee>Math.max(250,900/phase))){
       boss.lastMelee=now;
-      damagePlayer(room,target,boss.dmg*(1+(phase-1)*0.35));
+      damagePlayer(room,target,boss.dmg*(1+(phase-1)*0.5));
+      if(phase>=2){
+        alive.forEach(p=>{if(p!==target&&dist(p,boss)<100)damagePlayer(room,p,boss.dmg*0.75);});
+      }
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
 
-    // 1페이즈: 스파이럴
-    if(phase>=1&&(!boss.lastSpiral||now-boss.lastSpiral>(phase>=3?200:300))){
+    // 삼중 스파이럴 (phase1부터, phase마다 arm 추가)
+    const spiralCD=phase>=3?120:phase>=2?175:260;
+    if(!boss.lastSpiral||now-boss.lastSpiral>spiralCD){
       boss.lastSpiral=now;
-      boss.spiralAngle=(boss.spiralAngle||0)+(phase>=3?0.55:0.35);
-      [0,Math.PI].slice(0,phase>=2?2:1).forEach(offset=>{
-        const a=boss.spiralAngle+offset;
+      boss.spiralAngle=(boss.spiralAngle||0)+(phase>=3?0.65:phase>=2?0.5:0.4);
+      const arms=phase>=3?3:phase>=2?2:1;
+      for(let arm=0;arm<arms;arm++){
+        const a=boss.spiralAngle+arm*(Math.PI*2/arms);
         const pid=`p${room.projId++}`;
-        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,dmg:boss.dmg*0.5,ttl:130};
-      });
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+          vx:Math.cos(a)*(6.5+phase)*1.3,vy:Math.sin(a)*(6.5+phase)*1.3,dmg:boss.dmg*0.52,ttl:145};
+      }
     }
 
-    // 2페이즈+: 유도탄
-    if(phase>=2&&(!boss.lastHoming||now-boss.lastHoming>2200)){
+    // 유도탄 (phase1부터 존재, 점점 강화)
+    const homingCD=phase>=3?1400:phase>=2?2000:3200;
+    if(!boss.lastHoming||now-boss.lastHoming>homingCD){
       boss.lastHoming=now;
-      const cnt=phase>=3?8:5;
+      const cnt=phase>=3?10:phase>=2?6:3;
       for(let i=0;i<cnt;i++){
         const t2=alive[i%alive.length];
         setTimeout(()=>{
-          if(!boss||!room.projectiles)return;
-          const ang=Math.atan2(t2.y-boss.y,t2.x-boss.x);
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          const ang=Math.atan2(t2.y-b.y,t2.x-b.x);
           const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(ang)*4.5,vy:Math.sin(ang)*4.5,
-            dmg:boss.dmg*0.7,ttl:150,homing:t2.id};
-        },i*220);
+          const spd2=phase>=3?9.1:7.15;
+          room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+            vx:Math.cos(ang)*spd2,vy:Math.sin(ang)*spd2,
+            dmg:b.dmg*(phase>=3?0.92:0.72),ttl:175,homing:t2.id};
+        },i*175);
       }
       io.to(room.id).emit('bossAction',{type:'homing_warn',x:boss.x,y:boss.y});
     }
 
-    // 3페이즈: 십자 + 차지
-    if(phase>=3) {
-      if(!boss.lastCross||now-boss.lastCross>2500){
+    // 2페이즈+: 산탄 추가
+    if(phase>=2&&(!boss.lastShot||now-boss.lastShot>(phase>=3?1000:1900))){
+      boss.lastShot=now;
+      const ang=Math.atan2(dy,dx);
+      const count=phase>=3?14:8;
+      const spread=phase>=3?Math.PI*1.1:Math.PI*0.8;
+      for(let i=0;i<count;i++){
+        const a=ang+(i/(count-1)-0.5)*spread;
+        const pid=`p${room.projId++}`;
+        room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+          vx:Math.cos(a)*9.75,vy:Math.sin(a)*9.75,dmg:boss.dmg*0.62,ttl:135};
+      }
+      io.to(room.id).emit('bossAction',{type:'spread',x:boss.x,y:boss.y});
+    }
+
+    // 3페이즈: 16방향 2웨이브 버스트 + 차지
+    if(phase>=3){
+      if(!boss.lastCross||now-boss.lastCross>1800){
         boss.lastCross=now;
-        for(let i=0;i<8;i++){
-          const a=(i/8)*Math.PI*2;
-          const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,dmg:boss.dmg*0.6,ttl:120};
+        boss.crossRot=(boss.crossRot||0)+Math.PI/8;
+        for(let w=0;w<2;w++){
+          setTimeout(()=>{
+            if(!room.boss||!rooms[room.id])return;
+            const b=room.boss;
+            for(let i=0;i<16;i++){
+              const a=(i/16)*Math.PI*2+b.crossRot+w*(Math.PI/16);
+              const pid=`p${room.projId++}`;
+              room.projectiles[pid]={id:pid,x:b.x,y:b.y,
+                vx:Math.cos(a)*11.7,vy:Math.sin(a)*11.7,dmg:b.dmg*0.68,ttl:135};
+            }
+          },w*380);
         }
         io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
       }
-      if(!boss.lastCharge||now-boss.lastCharge>3500){
+      if(!boss.lastCharge||now-boss.lastCharge>2500){
         boss.lastCharge=now;
         const t2=alive[Math.floor(Math.random()*alive.length)];
         const tx=t2.x,ty=t2.y;
         io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:0});
         setTimeout(()=>{
-          if(!boss)return;
-          boss.isCharging=true;
-          const [cx,cy]=norm(tx-boss.x,ty-boss.y);
+          if(!room.boss||!rooms[room.id])return;
+          const b=room.boss;
+          b.isCharging=true;
+          const [cx,cy]=norm(tx-b.x,ty-b.y);
           let ticks=0;
           const iv=setInterval(()=>{
-            if(!boss||ticks++>24){boss.isCharging=false;clearInterval(iv);return;}
-            boss.x+=cx*12;boss.y+=cy*12;
-            boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
-            alive.forEach(p=>{if(dist(p,boss)<55)damagePlayer(room,p,boss.dmg*1.6);});
+            if(!room.boss||ticks++>26){if(room.boss)room.boss.isCharging=false;clearInterval(iv);return;}
+            room.boss.x+=cx*16;room.boss.y+=cy*16;
+            room.boss.x=clamp(room.boss.x,-MAP,MAP);room.boss.y=clamp(room.boss.y,-MAP,MAP);
+            alive.forEach(p=>{if(dist(p,room.boss)<62)damagePlayer(room,p,room.boss.dmg*1.85);});
           },40);
-        },900);
+        },700);
       }
     }
   }
@@ -527,7 +667,7 @@ setInterval(()=>{
             const [hx,hy]=norm(pt.x-proj.x,pt.y-proj.y);
             proj.vx=proj.vx*0.94+hx*0.4; proj.vy=proj.vy*0.94+hy*0.4;
             const spd=Math.hypot(proj.vx,proj.vy);
-            if(spd>5){proj.vx=(proj.vx/spd)*5;proj.vy=(proj.vy/spd)*5;}
+            if(spd>6.5){proj.vx=(proj.vx/spd)*6.5;proj.vy=(proj.vy/spd)*6.5;}
           }
         }
         proj.x+=proj.vx; proj.y+=proj.vy;
@@ -576,7 +716,23 @@ setInterval(()=>{
         const [nx,ny]=norm(dx,dy);
 
         if(enemy.type==='melee'){
-          if(d<45){
+          if(enemy.isCharging)return;
+          // 5초마다 짧은 돌진
+          if(d>80&&d<500&&(!enemy.lastCharge||now-enemy.lastCharge>5000)){
+            enemy.lastCharge=now; enemy.isCharging=true;
+            const [cx,cy]=[nx,ny];
+            io.to(room.id).emit('enemyCharge',{id:enemy.id,x:enemy.x,y:enemy.y});
+            let ct=0;
+            const iv=setInterval(()=>{
+              const e2=room.enemies&&room.enemies[enemy.id];
+              if(!rooms[room.id]||!e2||ct++>10){if(e2)e2.isCharging=false;clearInterval(iv);return;}
+              e2.x=clamp(e2.x+cx*15,-MAP+30,MAP-30);
+              e2.y=clamp(e2.y+cy*15,-MAP+30,MAP-30);
+              Object.values(room.players).forEach(p=>{
+                if(p.hp>0&&dist(p,e2)<48)damagePlayer(room,p,enemy.dmg*1.3);
+              });
+            },40);
+          } else if(d<45){
             if(!enemy.lastAtk||now-enemy.lastAtk>1200){
               enemy.lastAtk=now;
               damagePlayer(room,target,enemy.dmg);
@@ -586,6 +742,43 @@ setInterval(()=>{
             enemy.x+=nx*enemy.speed; enemy.y+=ny*enemy.speed;
             enemy.x=clamp(enemy.x,-MAP+30,MAP-30); enemy.y=clamp(enemy.y,-MAP+30,MAP-30);
           }
+        } else if(enemy.type==='elite'){
+          if(enemy.isCharging)return;
+          // 거리 유지 후 원거리 공격
+          const keepE=280;
+          if(d>keepE){enemy.x+=nx*enemy.speed;enemy.y+=ny*enemy.speed;}
+          else if(d<keepE-80){enemy.x-=nx*enemy.speed;enemy.y-=ny*enemy.speed;}
+          enemy.x=clamp(enemy.x,-MAP+30,MAP-30); enemy.y=clamp(enemy.y,-MAP+30,MAP-30);
+          // 3방향 원거리 공격
+          if(!enemy.lastAtk||now-enemy.lastAtk>1800){
+            enemy.lastAtk=now;
+            for(let s=-1;s<=1;s++){
+              const ang=Math.atan2(dy,dx)+s*0.2;
+              const pid=`p${room.projId++}`;
+              room.projectiles[pid]={id:pid,x:enemy.x,y:enemy.y,
+                vx:Math.cos(ang)*7.15,vy:Math.sin(ang)*7.15,dmg:enemy.dmg,ttl:155};
+              // 실제 pid로 emit — 클라이언트가 projDestroy로 정상 제거
+              io.to(room.id).emit('enemyShoot',{id:pid,x:enemy.x,y:enemy.y,
+                vx:Math.cos(ang)*7.15,vy:Math.sin(ang)*7.15});
+            }
+          }
+          // 차지 (5초마다)
+          if(!enemy.lastCharge||now-enemy.lastCharge>5000){
+            enemy.lastCharge=now;
+            enemy.isCharging=true;
+            const [cx,cy]=[nx,ny];
+            io.to(room.id).emit('eliteCharge',{id:enemy.id,tx:target.x,ty:target.y});
+            let ticks=0;
+            const iv=setInterval(()=>{
+              const e2=room.enemies&&room.enemies[enemy.id];
+              if(!rooms[room.id]||!e2||ticks++>20){if(e2)e2.isCharging=false;clearInterval(iv);return;}
+              e2.x=clamp(e2.x+cx*18,-MAP+30,MAP-30);
+              e2.y=clamp(e2.y+cy*18,-MAP+30,MAP-30);
+              Object.values(room.players).forEach(p=>{
+                if(p.hp>0&&dist(p,e2)<55)damagePlayer(room,p,enemy.dmg*1.6);
+              });
+            },40);
+          }
         } else {
           const keep=260;
           if(d>keep){enemy.x+=nx*enemy.speed;enemy.y+=ny*enemy.speed;}
@@ -594,8 +787,16 @@ setInterval(()=>{
           if(!enemy.lastAtk||now-enemy.lastAtk>2200){
             enemy.lastAtk=now;
             const pid=`p${room.projId++}`;
-            room.projectiles[pid]={id:pid,x:enemy.x,y:enemy.y,vx:nx*4.5,vy:ny*4.5,dmg:enemy.dmg,ttl:140};
-            io.to(room.id).emit('enemyShoot',{id:pid,x:enemy.x,y:enemy.y,vx:nx*4.5,vy:ny*4.5});
+            room.projectiles[pid]={id:pid,x:enemy.x,y:enemy.y,vx:nx*5.85,vy:ny*5.85,dmg:enemy.dmg,ttl:140};
+            io.to(room.id).emit('enemyShoot',{id:pid,x:enemy.x,y:enemy.y,vx:nx*5.85,vy:ny*5.85});
+          }
+          // 10초마다 현위치 100px 이내 순간이동
+          if(!enemy.lastTele||now-enemy.lastTele>10000){
+            enemy.lastTele=now;
+            const ta=Math.random()*Math.PI*2, tr=50+Math.random()*50;
+            enemy.x=clamp(enemy.x+Math.cos(ta)*tr,-MAP+30,MAP-30);
+            enemy.y=clamp(enemy.y+Math.sin(ta)*tr,-MAP+30,MAP-30);
+            io.to(room.id).emit('enemyTele',{id:enemy.id,x:enemy.x,y:enemy.y});
           }
         }
 
@@ -707,19 +908,18 @@ io.on('connection',socket=>{
       const e=room.enemies[data.enemyId];
       e.hp-=dmg;
       if(e.hp<=0){
-        const xpGain=e.type==='melee'?5:7;
+        const xpGain=e.type==='melee'?5:e.type==='elite'?20:7;
         delete room.enemies[data.enemyId]; room.waveKilled++;
         io.to(room.id).emit('enemyDeath',data.enemyId);
-        // 경험치 지급
+        // 경험치 지급 (레벨당 필요 XP 20% 증가)
         Object.values(room.players).forEach(p=>{
           if(p.hp<=0)return;
-          const prevLv=Math.floor((p.xp||0)/100);
+          const prev=getPlayerLevel(p.xp||0);
           p.xp=(p.xp||0)+xpGain;
-          const newLv=Math.floor(p.xp/100);
-          io.to(p.id).emit('xpUpdate',{xp:p.xp%100,level:newLv+1,xpMax:100});
-          if(newLv>prevLv){
-            p.level=newLv+1;
-            // 자동 스탯: 공격력 +2%, 피해저항 +3%
+          const cur=getPlayerLevel(p.xp);
+          io.to(p.id).emit('xpUpdate',{xp:cur.xpInLevel,level:cur.lv,xpMax:cur.xpMax});
+          if(cur.lv>prev.lv){
+            p.level=cur.lv;
             p.damageMult=(p.damageMult||1)*1.02;
             p.defenseMult=(p.defenseMult||1)*0.97;
             io.to(p.id).emit('levelUpAuto',{level:p.level});
@@ -773,8 +973,8 @@ io.on('connection',socket=>{
       const room=rooms[socket.roomId];if(!room)return;
       const bid=`bar${Date.now()}`;
       room.barriers=room.barriers||[];
-      room.barriers.push({id:bid,x:data.x,y:data.y,expires:Date.now()+10000});
-      io.to(room.id).emit('barrierPlaced',{id:bid,x:data.x,y:data.y,duration:10000});
+      room.barriers.push({id:bid,x:data.x,y:data.y,expires:Date.now()+5000});
+      io.to(room.id).emit('barrierPlaced',{id:bid,x:data.x,y:data.y,duration:5000});
     }
   });
 
@@ -932,6 +1132,8 @@ function enterMobRoom(room,node){
   const toSpawn=[];
   for(let i=0;i<mel;i++) toSpawn.push({type:'melee',hp:wc.hp,dmg:wc.dmg,speed:8});
   for(let i=0;i<rng;i++) toSpawn.push({type:'ranged',hp:wc.hp*0.6|0,dmg:wc.dmg*0.8,speed:5});
+  // 강력한 적 1마리 추가
+  toSpawn.push({type:'elite',hp:500,dmg:Math.max(18,wc.dmg*1.5|0),speed:6});
   for(let i=toSpawn.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toSpawn[i],toSpawn[j]]=[toSpawn[j],toSpawn[i]];}
   io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:1,totalWaves:1,enemies:{}});
   let spawned=0;

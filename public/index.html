@@ -125,14 +125,14 @@
     /* 아이템 더미 이미지 */
     .item-thumb{width:100%;height:44px;display:flex;align-items:center;justify-content:center;
                 font-size:20px;flex-shrink:0;}
-    .item-thumb.longsword{background:linear-gradient(135deg,#331100,#aa4400,#ff8822);}
+    .item-thumb.longsword{background:url('/assets/weapon/long_sword.png') center/contain no-repeat, linear-gradient(135deg,#331100,#aa4400,#ff8822);}
     .item-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
     .item-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
     .item-thumb.swiftBoots{background:linear-gradient(135deg,#001a00,#116622,#44bb66);}
     .item-thumb.empty{background:rgba(20,0,40,0.4);}
     .item-name{padding:3px 2px;font-size:9px;color:#a070c0;width:100%;text-align:center;}
     .eq-thumb{width:100%;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;}
-    .eq-thumb.longsword{background:linear-gradient(135deg,#331100,#aa4400,#ff8822);}
+    .eq-thumb.longsword{background:url('/assets/weapon/long_sword.png') center/contain no-repeat, linear-gradient(135deg,#331100,#aa4400,#ff8822);}
     .eq-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
     .eq-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
     .eq-thumb.swiftBoots{background:linear-gradient(135deg,#001a00,#116622,#44bb66);}
@@ -542,6 +542,9 @@ socket.on('enemyUpdate',enemies=>{if(gameScene)gameScene.onEnemyUpdate(enemies);
 socket.on('enemyDeath',id=>{if(gameScene)gameScene.onEnemyDeath(id);});
 socket.on('enemyAttack',data=>{if(gameScene)gameScene.onEnemyAttack(data);});
 socket.on('enemyShoot',data=>{if(gameScene)gameScene.onEnemyShoot(data);});
+socket.on('eliteCharge',data=>{if(gameScene)gameScene.onEliteCharge(data);});
+socket.on('enemyCharge',data=>{if(gameScene)gameScene.onEnemyCharge(data);});
+socket.on('enemyTele',data=>{if(gameScene)gameScene.onEnemyTele(data);});
 socket.on('projUpdate',projs=>{if(gameScene)gameScene.onProjUpdate(projs);});
 socket.on('projDestroy',id=>{if(gameScene)gameScene.onProjDestroy(id);});
 socket.on('playerMoved',data=>{if(gameScene)gameScene.onPlayerMoved(data);});
@@ -736,7 +739,7 @@ function toggleInventory(){
 }
 
 // ===== 인벤토리 UI =====
-const ITEM_ICONS={longsword:'⚔',soulBook:'✦',ironArmor:'◈',swiftBoots:'❋'};
+const ITEM_ICONS={longsword:'',soulBook:'✦',ironArmor:'◈',swiftBoots:'❋'};
 const SLOT_LABELS={weapon:'무기',armor:'갑옷',boots:'신발'};
 
 function refreshInventoryUI(){
@@ -747,7 +750,7 @@ function refreshInventoryUI(){
     if(itemId){
       el.classList.add('filled');
       el.innerHTML=`<span class="slot-type">${SLOT_LABELS[slot]}</span>`+
-        `<div class="eq-thumb ${itemId}">${ITEM_ICONS[itemId]||'?'}</div>`+
+        `<div class="eq-thumb ${itemId}">${ITEM_ICONS[itemId]}</div>`+
         `<div style="font-size:9px;color:#a080d0;padding:2px">${getItemName(itemId)}</div>`;
     } else {
       el.classList.remove('filled');
@@ -816,15 +819,18 @@ function showHitEffect(){
 }
 
 // 스킬 쿨타임 표시
+const _cdTimers={};
 function startCooldown(key,ms){
   const id=`sk-${key}-cool`;
   const el=document.getElementById(id);if(!el)return;
+  // 이전 interval 취소 (race condition 방지)
+  if(_cdTimers[key]){clearInterval(_cdTimers[key]);delete _cdTimers[key];}
   el.classList.remove('hidden');
   const end=Date.now()+ms;
-  const iv=setInterval(()=>{
+  _cdTimers[key]=setInterval(()=>{
     const left=Math.max(0,end-Date.now());
     el.textContent=(left/1000).toFixed(1);
-    if(left<=0){el.classList.add('hidden');clearInterval(iv);}
+    if(left<=0){el.classList.add('hidden');clearInterval(_cdTimers[key]);delete _cdTimers[key];}
   },100);
 }
 
@@ -1077,8 +1083,9 @@ class GameScene extends Phaser.Scene {
     socket.emit('useSkill',skillData);
 
     this.zCooldown=true;
-    startCooldown('z',SKILL_Z_CD[myRole]||350);
-    this.time.delayedCall(SKILL_Z_CD[myRole]||350,()=>{this.zCooldown=false;});
+    const zCd=Math.round((SKILL_Z_CD[myRole]||350)/myAspdMult);
+    startCooldown('z',zCd);
+    this.time.delayedCall(zCd,()=>{this.zCooldown=false;});
   }
 
   // ===== X — 스킬 =====
@@ -1099,23 +1106,26 @@ class GameScene extends Phaser.Scene {
     if(myRole==='attacker'){
       this.launchSlash(x,y,dx,dy,angle);
       this.xCooldown=true;
-      startCooldown('x',SKILL_X_CD.attacker);
-      this.time.delayedCall(SKILL_X_CD.attacker,()=>{this.xCooldown=false;});
+      const xCdA=Math.round(SKILL_X_CD.attacker*myCdMult);
+      startCooldown('x',xCdA);
+      this.time.delayedCall(xCdA,()=>{this.xCooldown=false;});
     } else if(myRole==='tanker'){
       socket.emit('useSkill',{type:'tanker_barrier',x,y});
-      this.placeBarrier({id:'local_'+Date.now(),x,y,duration:10000});
-      // 쿨타임은 수호물이 사라진 후(10s) 시작 — 2s 재충전
+      this.placeBarrier({id:'local_'+Date.now(),x,y,duration:5000});
+      // 지속 5초 후 cdMult 적용된 쿨타임
       this.xCooldown=true;
-      startCooldown('x',10000);
-      this.time.delayedCall(10000,()=>{
-        startCooldown('x',4500);
-        this.time.delayedCall(4500,()=>{this.xCooldown=false;});
+      const xCdT=Math.round(10000*myCdMult);
+      startCooldown('x',5000);
+      this.time.delayedCall(5000,()=>{
+        startCooldown('x',xCdT);
+        this.time.delayedCall(xCdT,()=>{this.xCooldown=false;});
       });
     } else if(myRole==='healer'){
       socket.emit('useSkill',{type:'healer_invincible',x,y});
       this.xCooldown=true;
-      startCooldown('x',SKILL_X_CD.healer);
-      this.time.delayedCall(SKILL_X_CD.healer,()=>{this.xCooldown=false;});
+      const xCdH=Math.round(SKILL_X_CD.healer*myCdMult);
+      startCooldown('x',xCdH);
+      this.time.delayedCall(xCdH,()=>{this.xCooldown=false;});
     }
   }
 
@@ -1392,6 +1402,37 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({targets:aura,
         alpha:{from:0.1,to:0.32},duration:560,yoyo:true,repeat:-1});
 
+    } else if(data.type==='elite'){
+      // 강력한 적 — 붉은 육각 + 회전 오브
+      const aura = this.add.circle(0,0,30,0xff2200,0.15);
+      aura.setStrokeStyle(2,0xff4400,0.5);
+      s.add(aura);
+
+      const body = this.add.circle(0,0,18,0xcc1100,0.95);
+      body.setStrokeStyle(3,0xff3300,1);
+      s.add(body);
+
+      // 외부 6각 스파이크
+      const spikeG = this.add.graphics();
+      spikeG.lineStyle(2,0xff5500,0.8);
+      for(let i=0;i<6;i++){
+        const a=(i/6)*Math.PI*2;
+        spikeG.moveTo(Math.cos(a)*18,Math.sin(a)*18);
+        spikeG.lineTo(Math.cos(a)*30,Math.sin(a)*30);
+      }
+      spikeG.strokePath();
+      s.add(spikeG);
+
+      const core = this.add.circle(0,0,7,0xff8800,1);
+      s.add(core);
+
+      // 슬로우 회전 (전체)
+      this.tweens.add({targets:s,angle:360,duration:3000,repeat:-1,ease:'Linear'});
+      // 오라 펄싱
+      this.tweens.add({targets:aura,alpha:{from:0.12,to:0.45},duration:600,yoyo:true,repeat:-1});
+      this.tweens.add({targets:core,alpha:{from:0.8,to:1},scaleX:{from:0.8,to:1.2},
+        scaleY:{from:0.8,to:1.2},duration:400,yoyo:true,repeat:-1});
+
     } else {
       // 원거리 — 황금 원 + 공전 2점
       const aura = this.add.circle(0,0,20,0xffaa00,0.1);
@@ -1435,15 +1476,15 @@ class GameScene extends Phaser.Scene {
       let s=this.enemies[data.id];
       if(!s)s=this.createEnemySprite(data);
       s.x=data.x; s.y=data.y; s.hp=data.hp;
-      this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,
-        s.type==='melee'?0xcc44ff:0xffcc00);
+      const hpColor=s.type==='melee'?0xcc44ff:s.type==='elite'?0xff4400:0xffcc00;
+      this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,hpColor);
     });
   }
 
   onEnemyDeath(id){
     const s=this.enemies[id];if(!s)return;
     const sx=s.x,sy=s.y;
-    const color=s.type==='melee'?0xcc44ff:0xffdd22;
+    const color=s.type==='melee'?0xcc44ff:s.type==='elite'?0xff4400:0xffdd22;
 
     // 파티클 10개
     for(let i=0;i<10;i++){
@@ -1474,6 +1515,45 @@ class GameScene extends Phaser.Scene {
       this.tweens.add({targets:sp,x:data.x+Math.cos(a)*28,y:data.y+Math.sin(a)*28,
         alpha:0,scale:0.2,duration:240,ease:'Cubic.out',onComplete:()=>sp.destroy()});
     }
+  }
+
+  onEnemyCharge(data){
+    const s=this.enemies[data.id];if(!s)return;
+    // 돌진 예고 — 주황 링
+    const ring=this.add.circle(s.x,s.y,14,0xff6600,0);
+    ring.setStrokeStyle(3,0xff9900,0.9);ring.setDepth(4);
+    this.tweens.add({targets:ring,scale:2.2,alpha:0,duration:350,ease:'Cubic.out',
+      onComplete:()=>ring.destroy()});
+  }
+
+  onEnemyTele(data){
+    const s=this.enemies[data.id];if(!s)return;
+    // 사라지는 이펙트 (출발지)
+    const flash=this.add.circle(s.x,s.y,12,0xffcc00,0.7);flash.setDepth(4);
+    this.tweens.add({targets:flash,scale:2.5,alpha:0,duration:300,
+      onComplete:()=>flash.destroy()});
+    // 위치 갱신 후 등장 이펙트
+    s.x=data.x; s.y=data.y;
+    const appear=this.add.circle(data.x,data.y,8,0xffcc00,0);
+    appear.setStrokeStyle(2,0xffee44,0.85);appear.setDepth(4);
+    this.tweens.add({targets:appear,scale:2.8,alpha:0,duration:350,ease:'Back.out',
+      onComplete:()=>appear.destroy()});
+  }
+
+  onEliteCharge(data){
+    // 차지 경고 — 붉은 방향선
+    const s=this.enemies[data.id];if(!s)return;
+    const ang=Phaser.Math.Angle.Between(s.x,s.y,data.tx,data.ty);
+    const warn=this.add.graphics();
+    warn.lineStyle(3,0xff3300,0.7);
+    warn.lineBetween(s.x,s.y,data.tx,data.ty);
+    warn.setDepth(3);
+    this.tweens.add({targets:warn,alpha:0,duration:600,onComplete:()=>warn.destroy()});
+    // 레드 링 확산
+    const ring=this.add.circle(s.x,s.y,12,0xff2200,0);
+    ring.setStrokeStyle(3,0xff4400,0.9);ring.setDepth(4);
+    this.tweens.add({targets:ring,scale:2.8,alpha:0,duration:500,ease:'Cubic.out',
+      onComplete:()=>ring.destroy()});
   }
 
   onEnemyShoot(data){
