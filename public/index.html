@@ -351,6 +351,21 @@
 <script>
 // ===== 전역 =====
 const socket = io();
+
+// ===== BGM =====
+const bgm = new Audio('/assets/bgm/main_bgm.mp3');
+bgm.loop = true;
+bgm.volume = 0.45;
+let bgmStarted = false;
+function startBgm(){
+  if(bgmStarted) return;
+  bgmStarted = true;
+  bgm.play().catch(()=>{});
+}
+// 첫 인터랙션(클릭·키보드)에 자동 시작
+document.addEventListener('click', startBgm, {once:true});
+document.addEventListener('keydown', startBgm, {once:true});
+
 let myId=null, myRole=null, myHp=100, myMaxHp=100;
 let mySpeedMult=1, mySkillMult=1;
 let isReady=false, roomId=null, gameScene=null;

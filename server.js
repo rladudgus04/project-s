@@ -1132,8 +1132,8 @@ function enterMobRoom(room,node){
   const toSpawn=[];
   for(let i=0;i<mel;i++) toSpawn.push({type:'melee',hp:wc.hp,dmg:wc.dmg,speed:8});
   for(let i=0;i<rng;i++) toSpawn.push({type:'ranged',hp:wc.hp*0.6|0,dmg:wc.dmg*0.8,speed:5});
-  // 강력한 적 1마리 추가
-  toSpawn.push({type:'elite',hp:500,dmg:Math.max(18,wc.dmg*1.5|0),speed:6});
+  // 강력한 적 — 4층에서만 등장
+  if(floor===4) toSpawn.push({type:'elite',hp:500,dmg:Math.max(18,wc.dmg*1.5|0),speed:6});
   for(let i=toSpawn.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toSpawn[i],toSpawn[j]]=[toSpawn[j],toSpawn[i]];}
   io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:1,totalWaves:1,enemies:{}});
   let spawned=0;
