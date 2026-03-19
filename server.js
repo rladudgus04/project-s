@@ -10,24 +10,76 @@ const STAGE_CONFIG = [
   { waves:[{melee:36,ranged:10,hp:80,dmg:8},{melee:36,ranged:18,hp:90,dmg:10},{melee:30,ranged:23,hp:100,dmg:12}],
     boss:{name:'안개의 수호자',hp:1800,dmg:18,speed:8.8,pattern:'charge'} },
   { waves:[{melee:26,ranged:23,hp:110,dmg:12},{melee:28,ranged:24,hp:120,dmg:14},{melee:29,ranged:25,hp:130,dmg:16}],
-    boss:{name:'심연의 파수꾼',hp:3000,dmg:20,speed:6.0,pattern:'spin'} },
+    boss:{name:'심연의 파수꾼',hp:3000,dmg:20,speed:8.8,pattern:'spin'} },
   { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
-    boss:{name:'황혼의 군주',hp:4200,dmg:22,speed:5.5,pattern:'cross'} },
+    boss:{name:'황혼의 군주',hp:4200,dmg:22,speed:8.8,pattern:'cross'} },
   { waves:[{melee:30,ranged:25,hp:170,dmg:20},{melee:32,ranged:27,hp:180,dmg:22},{melee:34,ranged:28,hp:200,dmg:25}],
-    boss:{name:'혼돈의 지배자',hp:5400,dmg:24,speed:7.0,pattern:'berserk'} },
+    boss:{name:'혼돈의 지배자',hp:5400,dmg:24,speed:8.8,pattern:'berserk'} },
   { waves:[{melee:32,ranged:27,hp:200,dmg:25},{melee:35,ranged:29,hp:220,dmg:28},{melee:38,ranged:30,hp:250,dmg:30}],
-    boss:{name:'어둠의 왕',hp:10500,dmg:30,speed:7.5,pattern:'final',isFinal:true} },
+    boss:{name:'어둠의 왕',hp:10500,dmg:30,speed:9.0,pattern:'final',isFinal:true} },
 ];
 
 const UPGRADES = [
-  { id:'damage_up',  name:'영혼의 불꽃',   desc:'공격 데미지 +25%',      apply:p=>{p.damageMult=(p.damageMult||1)*1.25;} },
-  { id:'hp_up',      name:'생명의 정수',   desc:'최대 HP +40, 즉시 회복', apply:p=>{p.maxHp+=40;p.hp=Math.min(p.hp+40,p.maxHp);} },
-  { id:'speed_up',   name:'바람의 발걸음', desc:'이동 속도 +20%',         apply:p=>{p.speedMult=(p.speedMult||1)*1.2;} },
-  { id:'defense_up', name:'수호의 갑옷',   desc:'받는 데미지 -20%',       apply:p=>{p.defenseMult=(p.defenseMult||1)*0.8;} },
-  { id:'skill_up',   name:'스킬 증폭',     desc:'스킬 데미지 +30%',       apply:p=>{p.skillMult=(p.skillMult||1)*1.3;} },
-  { id:'regen',      name:'재생의 결정',   desc:'3초마다 HP 5 회복',      apply:p=>{p.regenRate=(p.regenRate||0)+5;} },
-  { id:'heal_burst', name:'치유의 물결',   desc:'즉시 HP 50 회복',        apply:p=>{p.hp=Math.min(p.hp+50,p.maxHp);} },
+  { id:'dmg',   name:'영혼의 불꽃',   desc:'공격 데미지 +20%',      apply:p=>{p.damageMult=(p.damageMult||1)*1.2;} },
+  { id:'def',   name:'수호의 갑옷',   desc:'받는 데미지 -10%',      apply:p=>{p.defenseMult=(p.defenseMult||1)*0.9;} },
+  { id:'regen', name:'재생의 결정',   desc:'5초마다 HP 10 회복',    apply:p=>{p.regenRate=(p.regenRate||0)+10;} },
+  { id:'cd',    name:'노련한 솜씨',   desc:'스킬 쿨타임 10% 감소',  apply:p=>{p.cdMult=(p.cdMult||1)*0.9;} },
+  { id:'aspd',  name:'영혼 가속',     desc:'공격 속도 15% 증가',    apply:p=>{p.aspdMult=(p.aspdMult||1)*1.15;} },
 ];
+
+// ===== 아이템 =====
+const ITEMS_LIST = [
+  { id:'longsword',  name:'롱소드',      type:'weapon', roles:['attacker','tanker'], desc:'공격력 +10%, 공격범위 +10%' },
+  { id:'soulBook',   name:'영혼의 책',   type:'weapon', roles:['healer'],            desc:'치유량 +10%, 치유범위 +10%' },
+  { id:'ironArmor',  name:'철갑옷',      type:'armor',  roles:null,                  desc:'받는 데미지 -15%' },
+  { id:'swiftBoots', name:'신속한 장화', type:'boots',  roles:null,                  desc:'이동속도 +10%' },
+];
+
+// ===== 맵 생성 (트리 구조) =====
+function generateMap() {
+  const nodes=[]; let nid=0;
+  const types=['equipment','mob','upgrade'];
+  const rand=arr=>arr[Math.floor(Math.random()*arr.length)];
+  // Floor 0: 시작 (클리어됨)
+  nodes.push({id:nid++,type:'start',floor:0,children:[],cleared:true});
+  // Floors 1-5: 각 층 2-3개 방 선택
+  for(let floor=1;floor<=5;floor++){
+    const count=Math.random()<0.4?2:3;
+    for(let i=0;i<count;i++)
+      nodes.push({id:nid++,type:rand(types),floor,children:[],cleared:false});
+  }
+  // Floor 6: 보스
+  nodes.push({id:nid++,type:'boss',floor:6,children:[],cleared:false});
+  // 연결: 각 층의 모든 노드를 다음 층 모든 노드와 연결
+  for(let floor=0;floor<=5;floor++){
+    const cur=nodes.filter(n=>n.floor===floor);
+    const nxt=nodes.filter(n=>n.floor===floor+1);
+    cur.forEach(n=>{n.children=nxt.map(x=>x.id);});
+  }
+  return nodes;
+}
+
+// ===== 장비 스탯 적용 =====
+function applyEquipStats(p){
+  const eq=p.equipped||{};
+  p.equipDmg   = eq.weapon==='longsword'  ? 1.1 : 1;
+  p.equipRange  = eq.weapon==='longsword'  ? 1.1 : 1;
+  p.equipHeal   = eq.weapon==='soulBook'   ? 1.1 : 1;
+  p.equipHealR  = eq.weapon==='soulBook'   ? 1.1 : 1;
+  p.equipDef    = eq.armor ==='ironArmor'  ? 0.85: 1;
+  p.equipSpeed  = eq.boots ==='swiftBoots' ? 1.1 : 1;
+}
+
+function emitStats(room, p){
+  io.to(p.id).emit('statsUpdate',{
+    speedMult:(p.speedMult||1)*(p.equipSpeed||1),
+    damageMult:(p.damageMult||1)*(p.equipDmg||1),
+    skillMult:p.skillMult||1, cdMult:p.cdMult||1, aspdMult:p.aspdMult||1,
+    healMult:(p.skillMult||1)*(p.equipHeal||1), healRangeMult:p.equipHealR||1,
+    attackRangeMult:p.equipRange||1,
+    hp:p.hp, maxHp:p.maxHp, equipped:p.equipped||{}, inventory:p.inventory||[]
+  });
+}
 
 const rooms = {};
 let gEid = 0;
@@ -46,7 +98,7 @@ function damagePlayer(room, player, base) {
   if(room.barriers && room.barriers.length>0){
     for(const bar of room.barriers){if(dist(player,bar)<250)return;}
   }
-  const mult = (player.defenseMult||1) * (player.role==='tanker'?0.5:1);
+  const mult = (player.defenseMult||1) * (player.equipDef||1) * (player.role==='tanker'?0.5:1);
   player.hp = Math.max(0, player.hp - base*mult);
   io.to(room.id).emit('playerHealthUpdate',{playerId:player.id,hp:Math.floor(player.hp),maxHp:player.maxHp});
   if(player.hp<=0) io.to(room.id).emit('playerDied',{playerId:player.id});
@@ -247,21 +299,31 @@ const BOSS_AI = {
       damagePlayer(room,target,boss.dmg);
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
-    // 십자 탄막 (3s마다)
-    if(!boss.lastCross||now-boss.lastCross>(phase2?2000:3200)){
-      boss.lastCross=now;
-      const dirs=phase2?[[1,0],[-1,0],[0,1],[0,-1],[0.707,0.707],[-0.707,0.707],[0.707,-0.707],[-0.707,-0.707]]
-                       :[[1,0],[-1,0],[0,1],[0,-1]];
-      dirs.forEach(([vx,vy])=>{
-        // 각 방향에 3발씩
-        for(let n=0;n<3;n++){
+    // 검기 날리기 (플레이어 방향으로 빠른 검기 3연발)
+    if(!boss.lastBeam||now-boss.lastBeam>(phase2?1800:3000)){
+      boss.lastBeam=now;
+      const targets=phase2?alive:[target];
+      targets.forEach((tgt,ti)=>{
+        const baseAng=Math.atan2(tgt.y-boss.y,tgt.x-boss.x);
+        for(let i=0;i<3;i++){
           setTimeout(()=>{
-            if(!boss)return;
+            if(!boss||!rooms[room.id])return;
+            const ang=baseAng+(i-1)*0.09;
             const pid=`p${room.projId++}`;
-            room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:vx*6,vy:vy*6,dmg:boss.dmg*0.65,ttl:130};
-          },n*180);
+            room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+              vx:Math.cos(ang)*13,vy:Math.sin(ang)*13,dmg:boss.dmg*0.78,ttl:210};
+          },ti*350+i*110);
         }
       });
+      // 2페이즈: 8방향 추가 검기
+      if(phase2){
+        for(let i=0;i<8;i++){
+          const ang=(i/8)*Math.PI*2;
+          const pid=`p${room.projId++}`;
+          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+            vx:Math.cos(ang)*10,vy:Math.sin(ang)*10,dmg:boss.dmg*0.55,ttl:190};
+        }
+      }
       io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:phase2?2:1});
     }
     // 차지 (2.8s마다, 속도 상승)
@@ -402,66 +464,7 @@ const BOSS_AI = {
   }
 };
 
-// ===== 웨이브/보스 =====
-function spawnWave(room) {
-  const sc=STAGE_CONFIG[room.stage], wc=sc.waves[room.wave];
-  room.enemies={}; room.projectiles={}; room.projId=0;
-  room.waveTotal=wc.melee+wc.ranged; room.waveKilled=0;
-
-  const ps=Object.values(room.players);
-  const cx=ps.reduce((s,p)=>s+p.x,0)/(ps.length||1);
-  const cy=ps.reduce((s,p)=>s+p.y,0)/(ps.length||1);
-
-  // 등장 대기열 셔플 (혼합 등장)
-  const toSpawn=[];
-  for(let i=0;i<wc.melee;i++)  toSpawn.push({type:'melee', hp:wc.hp,         dmg:wc.dmg,     speed:8});
-  for(let i=0;i<wc.ranged;i++) toSpawn.push({type:'ranged',hp:wc.hp*0.6|0,   dmg:wc.dmg*0.8, speed:5});
-  for(let i=toSpawn.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toSpawn[i],toSpawn[j]]=[toSpawn[j],toSpawn[i]];}
-
-  io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:room.wave+1,
-    totalWaves:sc.waves.length,enemies:{}});
-
-  // 배치 스폰 (8마리씩 1.5초 간격)
-  const BATCH=8, DELAY=1500;
-  let spawned=0;
-  (function spawnBatch(){
-    if(!rooms[room.id]||room.state!=='playing')return;
-    const end=Math.min(spawned+BATCH,toSpawn.length);
-    for(let i=spawned;i<end;i++){
-      const e=toSpawn[i];
-      const id=`e${gEid++}`;
-      const angle=Math.random()*Math.PI*2, r=450+Math.random()*200;
-      const x=clamp(cx+Math.cos(angle)*r,-MAP+50,MAP-50);
-      const y=clamp(cy+Math.sin(angle)*r,-MAP+50,MAP-50);
-      room.enemies[id]={id,type:e.type,x,y,hp:e.hp,maxHp:e.hp,dmg:e.dmg,speed:e.speed};
-    }
-    spawned=end;
-    if(spawned<toSpawn.length) setTimeout(spawnBatch,DELAY);
-  })();
-}
-
-function spawnBoss(room) {
-  room.state='boss';
-  const bc=STAGE_CONFIG[room.stage].boss;
-  room.boss={...bc,maxHp:bc.hp,x:0,y:-400};
-  room.projectiles={}; room.projId=0;
-  io.to(room.id).emit('bossSpawn',{name:bc.name,hp:bc.hp,maxHp:bc.hp,stage:room.stage+1,isFinal:bc.isFinal||false});
-}
-
-function offerUpgrades(room) {
-  room.upgradeVotes={};
-  Object.values(room.players).forEach(player=>{
-    const opts=[...UPGRADES].sort(()=>Math.random()-0.5).slice(0,3);
-    io.to(player.id).emit('upgradeOffer',opts.map(u=>({id:u.id,name:u.name,desc:u.desc})));
-  });
-}
-
-function checkUpgradesDone(room) {
-  if(Object.keys(room.upgradeVotes).length>=Object.keys(room.players).length){
-    io.to(room.id).emit('upgradesDone');
-    setTimeout(()=>{room.wave++;room.state='playing';spawnWave(room);},1500);
-  }
-}
+// ===== 유틸 =====
 
 function reviveDead(room) {
   Object.values(room.players).forEach(p=>{
@@ -472,36 +475,23 @@ function reviveDead(room) {
   });
 }
 
-function onWaveClear(room) {
-  room.waveTotal=0;
-  reviveDead(room); // 사망 플레이어 50% 체력으로 부활
-  // 업그레이드 화면 전환 시 모든 투사체 제거
-  room.projectiles={}; room.projId=0;
-  io.to(room.id).emit('clearAllProjectiles');
-  const sc=STAGE_CONFIG[room.stage];
-  if(room.wave>=sc.waves.length-1){
-    io.to(room.id).emit('preBossWarning',{stage:room.stage+1,name:sc.boss.name});
-    setTimeout(()=>spawnBoss(room),4000);
-  } else {
-    room.state='upgrade';
-    io.to(room.id).emit('waveClear',{stage:room.stage+1,wave:room.wave+1});
-    offerUpgrades(room);
-  }
-}
-
 function onBossDead(room) {
-  reviveDead(room); // 보스 처치 시 사망 플레이어 부활
+  reviveDead(room);
   room.boss=null; room.projectiles={}; room.projId=0;
   io.to(room.id).emit('bossDead',{stage:room.stage+1});
-  io.to(room.id).emit('clearAllProjectiles'); // 남은 투사체 모두 제거
+  io.to(room.id).emit('clearAllProjectiles');
+  const node=room.mapNodes&&room.mapNodes.find(n=>n.id===room.currentNodeId);
+  if(node)node.cleared=true;
   if(room.stage>=STAGE_CONFIG.length-1){
     setTimeout(()=>{room.state='game_clear';io.to(room.id).emit('gameClear');},2500);
   } else {
     setTimeout(()=>{
-      room.stage++;room.wave=0;room.state='upgrade';
+      room.stage++;
+      room.mapNodes=generateMap(); room.currentNodeId=0;
+      room.state='map';
       io.to(room.id).emit('stageCleared',{nextStage:room.stage+1});
-      setTimeout(()=>offerUpgrades(room),3200); // 스테이지 전환 애니메이션 완료 후 업그레이드
-    },2000);
+      setTimeout(()=>io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:0,stage:room.stage+1}),3200);
+    },2500);
   }
 }
 
@@ -522,12 +512,12 @@ setInterval(()=>{
     }
 
     if(alive.length===0&&Object.keys(room.players).length>0&&
-       (room.state==='playing'||room.state==='boss')){
+       (room.state==='room_mob'||room.state==='boss')){
       room.state='game_over'; io.to(room.id).emit('gameOver'); return;
     }
 
     // 투사체
-    if(room.projectiles&&(room.state==='playing'||room.state==='boss')){
+    if(room.projectiles&&(room.state==='room_mob'||room.state==='boss')){
       const dead=[];
       Object.values(room.projectiles).forEach(proj=>{
         // 유도탄 조향
@@ -563,7 +553,7 @@ setInterval(()=>{
     }
 
     // 일반 웨이브 AI
-    if(room.state==='playing'){
+    if(room.state==='room_mob'){
       Object.values(room.enemies).forEach(enemy=>{
         if(alive.length===0)return;
         let target=alive.find(p=>p.role==='tanker'&&dist(p,enemy)<400)
@@ -630,7 +620,7 @@ setInterval(()=>{
       io.to(room.id).emit('enemyUpdate',room.enemies);
 
       if(room.waveTotal>0&&room.waveKilled>=room.waveTotal&&Object.keys(room.enemies).length===0)
-        onWaveClear(room);
+        onMobRoomClear(room);
     }
 
     // 보스 AI
@@ -679,8 +669,10 @@ io.on('connection',socket=>{
     socket.join(roomId); socket.roomId=roomId;
     const room=rooms[roomId];
     room.players[socket.id]={id:socket.id,roomId,x:Math.random()*200-100,y:Math.random()*200-100,
-      role:null,ready:false,hp:100,maxHp:100,damageMult:1,defenseMult:1,speedMult:1,skillMult:1,regenRate:0,
-      invincible:false};
+      role:null,ready:false,hp:100,maxHp:100,damageMult:1,defenseMult:1,speedMult:1,skillMult:1,
+      cdMult:1,aspdMult:1,regenRate:0,invincible:false,
+      xp:0,level:1,pendingUpgrades:0,inventory:[],equipped:{},
+      equipDmg:1,equipDef:1,equipSpeed:1,equipHeal:1,equipHealR:1,equipRange:1};
     io.to(roomId).emit('lobbyUpdate',getLobbyState(room));
   }
 
@@ -709,12 +701,32 @@ io.on('connection',socket=>{
   socket.on('hitEnemy',data=>{
     const room=rooms[socket.roomId];if(!room)return;
     const me=room.players[socket.id];if(!me)return;
-    const dmg=data.damage*(me.damageMult||1)*(me.skillMult||1);
+    const dmg=data.damage*(me.damageMult||1)*(me.skillMult||1)*(me.equipDmg||1);
 
-    if(room.state==='playing'&&room.enemies[data.enemyId]){
+    if(room.state==='room_mob'&&room.enemies[data.enemyId]){
       const e=room.enemies[data.enemyId];
       e.hp-=dmg;
-      if(e.hp<=0){delete room.enemies[data.enemyId];room.waveKilled++;io.to(room.id).emit('enemyDeath',data.enemyId);}
+      if(e.hp<=0){
+        const xpGain=e.type==='melee'?5:7;
+        delete room.enemies[data.enemyId]; room.waveKilled++;
+        io.to(room.id).emit('enemyDeath',data.enemyId);
+        // 경험치 지급
+        Object.values(room.players).forEach(p=>{
+          if(p.hp<=0)return;
+          const prevLv=Math.floor((p.xp||0)/100);
+          p.xp=(p.xp||0)+xpGain;
+          const newLv=Math.floor(p.xp/100);
+          io.to(p.id).emit('xpUpdate',{xp:p.xp%100,level:newLv+1,xpMax:100});
+          if(newLv>prevLv){
+            p.level=newLv+1;
+            // 자동 스탯: 공격력 +2%, 피해저항 +3%
+            p.damageMult=(p.damageMult||1)*1.02;
+            p.defenseMult=(p.defenseMult||1)*0.97;
+            io.to(p.id).emit('levelUpAuto',{level:p.level});
+            emitStats(room,p);
+          }
+        });
+      }
     }
     if((room.state==='boss'||room.state==='playing')&&room.boss&&data.enemyId==='boss'){
       const groggyMult = room.boss.groggy ? 1.5 : 1; // 그로기 중 피해 1.5배
@@ -726,7 +738,7 @@ io.on('connection',socket=>{
   socket.on('healPlayer',data=>{
     const room=rooms[socket.roomId];if(!room)return;
     const me=room.players[socket.id];
-    const amt=(data.amount||12)*(me.skillMult||1);
+    const amt=(data.amount||12)*(me.skillMult||1)*(me.equipHeal||1);
     const targets=data.targetId?[room.players[data.targetId]]:Object.values(room.players).filter(p=>p.hp>0);
     targets.forEach(t=>{
       if(!t||t.hp>=t.maxHp)return;
@@ -767,20 +779,85 @@ io.on('connection',socket=>{
   });
 
   socket.on('selectUpgrade',upgradeId=>{
-    const room=rooms[socket.roomId];if(!room||room.state!=='upgrade')return;
-    const p=room.players[socket.id];if(!p||room.upgradeVotes[socket.id])return;
-    const up=UPGRADES.find(u=>u.id===upgradeId);if(!up)return;
-    up.apply(p);
-    room.upgradeVotes[socket.id]=upgradeId;
-    socket.emit('upgradeApplied',{hp:p.hp,maxHp:p.maxHp,speedMult:p.speedMult,skillMult:p.skillMult});
-    io.to(room.id).emit('playerHealthUpdate',{playerId:socket.id,hp:Math.floor(p.hp),maxHp:p.maxHp});
-    checkUpgradesDone(room);
+    const room=rooms[socket.roomId];if(!room)return;
+    const p=room.players[socket.id];if(!p)return;
+    if(upgradeId!=='skip'){
+      const up=UPGRADES.find(u=>u.id===upgradeId);if(!up)return;
+      up.apply(p);
+      io.to(room.id).emit('playerHealthUpdate',{playerId:p.id,hp:Math.floor(p.hp),maxHp:p.maxHp});
+      emitStats(room,p);
+    }
+    // 영혼의 성장 방 투표 처리
+    if(room.state==='room_upgrade'){
+      room.roomVotes=room.roomVotes||{};
+      if(!room.roomVotes[socket.id]){
+        room.roomVotes[socket.id]=upgradeId;
+        checkUpgradeRoomDone(room);
+      }
+    }
   });
 
-  socket.on('skipUpgrade',()=>{
-    const room=rooms[socket.roomId];if(!room||room.state!=='upgrade')return;
-    if(!room.upgradeVotes[socket.id])room.upgradeVotes[socket.id]='skip';
-    checkUpgradesDone(room);
+  // ===== 장비 장착/해제 =====
+  socket.on('equipItem',({itemId})=>{
+    const room=rooms[socket.roomId];if(!room)return;
+    const p=room.players[socket.id];if(!p)return;
+    const inv=p.inventory||[];
+    const idx=inv.findIndex(i=>i.id===itemId);if(idx===-1)return;
+    const item=inv[idx];
+    if(item.roles&&!item.roles.includes(p.role))return;
+    inv.splice(idx,1);
+    const eq=p.equipped=p.equipped||{};
+    if(eq[item.type]){
+      const old=ITEMS_LIST.find(i=>i.id===eq[item.type]);
+      if(old&&inv.length<9)inv.push(old);
+    }
+    eq[item.type]=item.id; p.inventory=inv;
+    applyEquipStats(p); emitStats(room,p);
+  });
+
+  socket.on('unequipItem',(slot)=>{
+    const room=rooms[socket.roomId];if(!room)return;
+    const p=room.players[socket.id];if(!p)return;
+    const eq=p.equipped=p.equipped||{};if(!eq[slot])return;
+    const inv=p.inventory||[];if(inv.length>=9)return;
+    const item=ITEMS_LIST.find(i=>i.id===eq[slot]);
+    if(item)inv.push(item);
+    delete eq[slot]; p.inventory=inv;
+    applyEquipStats(p); emitStats(room,p);
+  });
+
+  // ===== 맵 방 선택 =====
+  socket.on('selectRoom',nodeId=>{
+    const room=rooms[socket.roomId];if(!room||room.state!=='map')return;
+    const node=room.mapNodes&&room.mapNodes.find(n=>n.id===nodeId);
+    if(!node||node.cleared)return;
+    const parentOk=room.mapNodes.some(n=>n.cleared&&n.children.includes(nodeId));
+    if(!parentOk)return;
+    room.currentNodeId=nodeId;
+    enterRoom(room,node);
+  });
+
+  // ===== 장비 방 아이템 선택 =====
+  socket.on('selectEquipItem',itemId=>{
+    const room=rooms[socket.roomId];if(!room||room.state!=='room_equip')return;
+    if(room.equipVotes[socket.id])return;
+    room.equipVotes[socket.id]=itemId||'skip';
+    const p=room.players[socket.id];
+    if(itemId&&itemId!=='skip'){
+      const item=ITEMS_LIST.find(i=>i.id===itemId);
+      if(item){
+        const inv=p.inventory=p.inventory||[];
+        if(inv.length<9){
+          inv.push(item);
+          const eq=p.equipped=p.equipped||{};
+          if(!eq[item.type]&&(!item.roles||item.roles.includes(p.role))){
+            eq[item.type]=item.id; applyEquipStats(p);
+          }
+          emitStats(room,p);
+        }
+      }
+    }
+    checkEquipRoomDone(room);
   });
 
   socket.on('disconnect',()=>{
@@ -789,21 +866,127 @@ io.on('connection',socket=>{
     io.to(socket.roomId).emit('playerDisconnected',socket.id);
     if(Object.keys(room.players).length===0)delete rooms[socket.roomId];
     else if(room.state==='lobby')io.to(socket.roomId).emit('lobbyUpdate',getLobbyState(room));
-    else if(room.state==='upgrade')checkUpgradesDone(room);
+    else if(room.state==='room_upgrade')checkUpgradeRoomDone(room);
   });
 });
 
 function startGame(room){
-  room.state='playing';room.stage=0;room.wave=0;
+  room.state='map'; room.stage=0;
+  room.mapNodes=generateMap(); room.currentNodeId=0;
+  room.waveTotal=0; room.waveKilled=0; room.equipVotes={};
   Object.values(room.players).forEach(p=>{
     if(p.role==='tanker'){p.maxHp=150;p.hp=150;}
     else if(p.role==='healer'){p.maxHp=80;p.hp=80;}
     else{p.maxHp=100;p.hp=100;}
+    p.xp=0;p.level=1;p.pendingUpgrades=0;p.inventory=[];p.equipped={};
+    applyEquipStats(p);
   });
   io.to(room.id).emit('gameStart',{
     players:Object.values(room.players).map(p=>({id:p.id,role:p.role,x:p.x,y:p.y,hp:p.hp,maxHp:p.maxHp}))
   });
-  setTimeout(()=>spawnWave(room),1500);
+  setTimeout(()=>io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:0,stage:room.stage+1}),1800);
+}
+
+// ===== 방 진입 =====
+function enterRoom(room,node){
+  if(node.type==='equipment')    enterEquipRoom(room,node);
+  else if(node.type==='mob')     enterMobRoom(room,node);
+  else if(node.type==='boss')    enterBossRoom(room,node);
+  else if(node.type==='upgrade') enterUpgradeRoom(room,node);
+}
+
+function enterEquipRoom(room,node){
+  room.state='room_equip'; room.equipVotes={};
+  io.to(room.id).emit('roomEntered',{nodeId:node.id,type:'equipment'});
+  Object.values(room.players).forEach(p=>{
+    const eligible=ITEMS_LIST.filter(i=>!i.roles||i.roles.includes(p.role));
+    const offers=[...eligible].sort(()=>Math.random()-0.5).slice(0,Math.min(3,eligible.length));
+    io.to(p.id).emit('equipOffer',{offers:offers.map(i=>({...i}))});
+  });
+}
+
+function checkEquipRoomDone(room){
+  if(Object.keys(room.equipVotes).length>=Object.keys(room.players).length){
+    const node=room.mapNodes.find(n=>n.id===room.currentNodeId);
+    if(node)node.cleared=true;
+    room.state='map';
+    io.to(room.id).emit('equipRoomClear');
+    setTimeout(()=>io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:room.currentNodeId,stage:room.stage+1}),1500);
+  }
+}
+
+function enterMobRoom(room,node){
+  room.state='room_mob';
+  io.to(room.id).emit('roomEntered',{nodeId:node.id,type:'mob'});
+  const floor=node.floor||1;
+  const sc=STAGE_CONFIG[room.stage];
+  const wc=sc.waves[Math.min(Math.floor((floor-1)/2),sc.waves.length-1)];
+  const mul=1+(floor-1)*0.12;
+  const mel=Math.round(wc.melee*mul);
+  const rng=Math.round(wc.ranged*mul);
+  room.enemies={}; room.projectiles={}; room.projId=0;
+  room.waveTotal=mel+rng; room.waveKilled=0;
+  const ps=Object.values(room.players);
+  const cx=ps.reduce((s,p)=>s+p.x,0)/(ps.length||1);
+  const cy=ps.reduce((s,p)=>s+p.y,0)/(ps.length||1);
+  const toSpawn=[];
+  for(let i=0;i<mel;i++) toSpawn.push({type:'melee',hp:wc.hp,dmg:wc.dmg,speed:8});
+  for(let i=0;i<rng;i++) toSpawn.push({type:'ranged',hp:wc.hp*0.6|0,dmg:wc.dmg*0.8,speed:5});
+  for(let i=toSpawn.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toSpawn[i],toSpawn[j]]=[toSpawn[j],toSpawn[i]];}
+  io.to(room.id).emit('waveStart',{stage:room.stage+1,wave:1,totalWaves:1,enemies:{}});
+  let spawned=0;
+  (function spawnBatch(){
+    if(!rooms[room.id]||room.state!=='room_mob')return;
+    const end=Math.min(spawned+8,toSpawn.length);
+    for(let i=spawned;i<end;i++){
+      const e=toSpawn[i]; const id=`e${gEid++}`;
+      const angle=Math.random()*Math.PI*2, r=450+Math.random()*200;
+      room.enemies[id]={id,type:e.type,x:clamp(cx+Math.cos(angle)*r,-MAP+50,MAP-50),
+        y:clamp(cy+Math.sin(angle)*r,-MAP+50,MAP-50),hp:e.hp,maxHp:e.hp,dmg:e.dmg,speed:e.speed};
+    }
+    spawned=end;
+    if(spawned<toSpawn.length)setTimeout(spawnBatch,1500);
+  })();
+}
+
+function onMobRoomClear(room){
+  room.waveTotal=0; reviveDead(room);
+  room.projectiles={}; room.projId=0;
+  io.to(room.id).emit('clearAllProjectiles');
+  const node=room.mapNodes.find(n=>n.id===room.currentNodeId);
+  if(node)node.cleared=true;
+  io.to(room.id).emit('mobRoomClear');
+  setTimeout(()=>{
+    room.state='map';
+    io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:room.currentNodeId,stage:room.stage+1});
+  },2500);
+}
+
+function enterBossRoom(room,node){
+  room.state='boss'; room.enemies={}; room.projectiles={}; room.projId=0;
+  const bc=STAGE_CONFIG[room.stage].boss;
+  room.boss={...bc,maxHp:bc.hp,x:0,y:-400};
+  io.to(room.id).emit('roomEntered',{nodeId:node.id,type:'boss'});
+  io.to(room.id).emit('bossSpawn',{name:bc.name,hp:bc.hp,maxHp:bc.hp,stage:room.stage+1,isFinal:bc.isFinal||false});
+}
+
+function enterUpgradeRoom(room,node){
+  room.state='room_upgrade'; room.roomVotes={};
+  io.to(room.id).emit('roomEntered',{nodeId:node.id,type:'upgrade'});
+  Object.values(room.players).forEach(p=>{
+    const opts=[...UPGRADES].sort(()=>Math.random()-0.5).slice(0,3);
+    io.to(p.id).emit('upgradeOffer',{upgrades:opts.map(u=>({id:u.id,name:u.name,desc:u.desc}))});
+  });
+}
+
+function checkUpgradeRoomDone(room){
+  if(Object.keys(room.roomVotes||{}).length>=Object.keys(room.players).length){
+    const node=room.mapNodes.find(n=>n.id===room.currentNodeId);
+    if(node)node.cleared=true;
+    room.state='map';
+    io.to(room.id).emit('upgRoomClear');
+    setTimeout(()=>io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:room.currentNodeId,stage:room.stage+1}),1800);
+  }
 }
 
 const PORT = process.env.PORT || 8081;

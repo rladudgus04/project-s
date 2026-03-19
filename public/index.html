@@ -80,19 +80,93 @@
     #boss-hp-bg{width:100%;height:16px;background:rgba(0,0,0,0.6);border:1px solid #aa2222;}
     #boss-hp-fill{height:100%;background:linear-gradient(90deg,#880000,#ff2222);transition:width .2s;}
 
-    /* 업그레이드 */
-    #upgrade-panel{position:absolute;inset:0;background:rgba(0,0,0,0.88);
-                   display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;}
+    /* XP 바 */
+    #xp-wrap{display:flex;align-items:center;gap:7px;}
+    #xp-label{font-size:12px;color:#c8a0ff;min-width:38px;}
+    #xp-bar-bg{width:130px;height:9px;background:rgba(0,0,0,0.5);border:1px solid #5030aa;}
+    #xp-bar{height:100%;background:linear-gradient(90deg,#7030ee,#c080ff);transition:width .35s;}
+    #xp-text{font-size:10px;color:#8060b0;min-width:46px;}
+
+    /* 맵 패널 */
+    #map-panel{position:absolute;inset:0;background:rgba(2,0,8,0.97);display:flex;
+               flex-direction:column;align-items:center;justify-content:center;z-index:18;}
+    #map-panel.hidden{display:none;}
+    #map-title{font-size:22px;color:#c8a0ff;letter-spacing:4px;margin-bottom:20px;
+               text-shadow:0 0 18px #8040ff;}
+    #map-canvas{cursor:pointer;border:1px solid #3a1a5a;border-radius:4px;}
+    #map-hint{font-size:12px;color:#5040a0;letter-spacing:2px;margin-top:14px;}
+    #map-inv-btn{position:absolute;top:18px;right:22px;padding:8px 18px;cursor:pointer;
+                 border:1px solid #6040aa;background:rgba(60,20,100,0.4);color:#c8a0ff;
+                 font-size:13px;font-family:inherit;letter-spacing:2px;}
+    #map-inv-btn:hover{background:rgba(100,40,180,0.6);}
+
+    /* 인벤토리 패널 */
+    #inv-panel{position:absolute;right:14px;top:58px;width:450px;
+               background:rgba(4,0,12,0.97);border:1px solid #4a2080;z-index:19;padding:18px;}
+    #inv-panel.hidden{display:none;}
+    #inv-title{font-size:16px;color:#c8a0ff;letter-spacing:3px;margin-bottom:14px;text-align:center;}
+    #inv-content{display:flex;gap:18px;}
+    #inv-equipped{flex:0 0 124px;}
+    #inv-backpack{flex:1;}
+    .inv-section{font-size:11px;color:#5040a0;margin-bottom:9px;letter-spacing:2px;}
+    .eq-slot{width:118px;height:78px;border:1px solid #3a1a60;background:rgba(50,0,90,0.25);
+             margin-bottom:8px;display:flex;flex-direction:column;align-items:center;
+             justify-content:center;cursor:pointer;text-align:center;font-size:11px;
+             color:#6050a0;transition:.15s;position:relative;overflow:hidden;}
+    .eq-slot:hover{border-color:#8040aa;background:rgba(80,20,130,0.3);}
+    .eq-slot.filled{border-color:#c8a0ff;color:#c8a0ff;}
+    .slot-type{font-size:9px;color:#4a3070;position:absolute;top:3px;left:5px;}
+    .inv-grid{display:flex;flex-wrap:wrap;gap:6px;}
+    .inv-item{width:78px;height:70px;border:1px solid #3a1a60;background:rgba(40,0,70,0.25);
+              display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+              cursor:pointer;text-align:center;font-size:9px;color:#a070c0;transition:.15s;
+              padding:0;overflow:hidden;}
+    .inv-item:hover{border-color:#c8a0ff;background:rgba(80,20,130,0.4);}
+    /* 아이템 더미 이미지 */
+    .item-thumb{width:100%;height:44px;display:flex;align-items:center;justify-content:center;
+                font-size:20px;flex-shrink:0;}
+    .item-thumb.longsword{background:linear-gradient(135deg,#331100,#aa4400,#ff8822);}
+    .item-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
+    .item-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
+    .item-thumb.swiftBoots{background:linear-gradient(135deg,#001a00,#116622,#44bb66);}
+    .item-thumb.empty{background:rgba(20,0,40,0.4);}
+    .item-name{padding:3px 2px;font-size:9px;color:#a070c0;width:100%;text-align:center;}
+    .eq-thumb{width:100%;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+    .eq-thumb.longsword{background:linear-gradient(135deg,#331100,#aa4400,#ff8822);}
+    .eq-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
+    .eq-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
+    .eq-thumb.swiftBoots{background:linear-gradient(135deg,#001a00,#116622,#44bb66);}
+
+    /* 장비 방 패널 */
+    #equip-room-panel{position:absolute;inset:0;background:rgba(2,0,8,0.95);display:flex;
+                      flex-direction:column;align-items:center;justify-content:center;z-index:18;}
+    #equip-room-panel.hidden{display:none;}
+    #equip-room-panel h2{font-size:26px;color:#ffcc44;letter-spacing:4px;margin-bottom:6px;
+                         text-shadow:0 0 18px #aa8800;}
+    #equip-room-panel>p{font-size:12px;color:#907040;margin-bottom:32px;}
+    .equip-cards{display:flex;gap:16px;margin-bottom:22px;}
+    .eqcard{width:175px;padding:22px 14px;border:1px solid #7a6030;background:rgba(70,45,10,0.35);
+            text-align:center;cursor:pointer;transition:.2s;}
+    .eqcard:hover{border-color:#ffcc44;background:rgba(110,80,15,0.6);
+                  box-shadow:0 0 18px #aa8800;transform:translateY(-4px);}
+    .eqcard h3{font-size:14px;color:#ffcc44;margin-bottom:5px;}
+    .eqcard .eq-type{font-size:10px;color:#907040;margin-bottom:8px;}
+    .eqcard p{font-size:12px;color:#c0a050;}
+
+    /* 업그레이드 (레벨업 — 우상단 소형 팝업) */
+    #upgrade-panel{position:absolute;top:60px;right:14px;width:220px;
+                   background:rgba(20,5,40,0.97);border:1px solid #c8a0ff;
+                   padding:16px 14px;z-index:20;}
     #upgrade-panel.hidden{display:none;}
-    #upgrade-panel h2{font-size:24px;color:#c8a0ff;letter-spacing:4px;margin-bottom:6px;}
-    #upgrade-panel p{color:#7060a0;font-size:12px;margin-bottom:36px;}
-    .upgrade-cards{display:flex;gap:18px;}
-    .upcard{width:175px;padding:22px 14px;border:1px solid #6040aa;background:rgba(60,20,100,0.4);
+    #upgrade-panel h2{font-size:15px;color:#c8a0ff;letter-spacing:3px;margin-bottom:4px;}
+    #upgrade-panel p{color:#7060a0;font-size:11px;margin-bottom:14px;}
+    .upgrade-cards{display:flex;flex-direction:column;gap:8px;}
+    .upcard{padding:12px 10px;border:1px solid #6040aa;background:rgba(60,20,100,0.4);
             text-align:center;cursor:pointer;transition:.2s;}
     .upcard:hover{border-color:#c8a0ff;background:rgba(100,40,180,0.6);
-                  box-shadow:0 0 18px #8040ff;transform:translateY(-4px);}
-    .upcard h3{font-size:14px;color:#c8a0ff;margin-bottom:8px;}
-    .upcard p{font-size:12px;color:#9080b0;}
+                  box-shadow:0 0 12px #8040ff;}
+    .upcard h3{font-size:12px;color:#c8a0ff;margin-bottom:4px;}
+    .upcard p{font-size:11px;color:#9080b0;}
 
     /* 알림 */
     #notify{position:absolute;top:75px;left:50%;transform:translateX(-50%);
@@ -158,10 +232,15 @@
 <!-- HUD -->
 <div id="hud" class="hidden">
   <div id="hud-top">
-    <div id="wave-info">STAGE 1 — WAVE 1/3</div>
+    <div id="wave-info">STAGE 1</div>
     <div id="hp-bar-wrap">
       <div id="hp-label">HP 100/100</div>
       <div id="hp-bar-bg"><div id="hp-bar" style="width:100%"></div></div>
+    </div>
+    <div id="xp-wrap">
+      <div id="xp-label">Lv.1</div>
+      <div id="xp-bar-bg"><div id="xp-bar" style="width:0%"></div></div>
+      <div id="xp-text">0/100</div>
     </div>
     <div id="party-hp"></div>
   </div>
@@ -204,11 +283,54 @@
 <!-- 알림 -->
 <div id="notify" class="hidden"></div>
 
-<!-- 업그레이드 -->
+<!-- 맵 패널 -->
+<div id="map-panel" class="hidden">
+  <div id="map-title">지도 — STAGE 1</div>
+  <canvas id="map-canvas" width="620" height="320"></canvas>
+  <div id="map-hint">방을 클릭하여 이동하세요 &nbsp;|&nbsp; I : 인벤토리</div>
+  <button id="map-inv-btn" onclick="toggleInventory()">인벤토리 [I]</button>
+</div>
+
+<!-- 인벤토리 패널 -->
+<div id="inv-panel" class="hidden">
+  <div id="inv-title">⚔ 인벤토리</div>
+  <div id="inv-content">
+    <div id="inv-equipped">
+      <div class="inv-section">장착 중</div>
+      <div class="eq-slot" id="eq-weapon" onclick="unequipSlot('weapon')">
+        <span class="slot-type">무기</span>빈 칸
+      </div>
+      <div class="eq-slot" id="eq-armor" onclick="unequipSlot('armor')">
+        <span class="slot-type">갑옷</span>빈 칸
+      </div>
+      <div class="eq-slot" id="eq-boots" onclick="unequipSlot('boots')">
+        <span class="slot-type">신발</span>빈 칸
+      </div>
+    </div>
+    <div id="inv-backpack">
+      <div class="inv-section">보유 장비 (클릭 = 장착)</div>
+      <div id="inv-grid" class="inv-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 장비 방 패널 -->
+<div id="equip-room-panel" class="hidden">
+  <h2>⚝ 장비 획득</h2>
+  <p>장비를 하나 선택하세요</p>
+  <div class="equip-cards" id="equip-cards"></div>
+  <button class="btn gray" onclick="socket.emit('selectEquipItem','skip')">건너뛰기</button>
+</div>
+
+<!-- 업그레이드 (영혼의 성장 방) -->
 <div id="upgrade-panel" class="hidden">
   <h2>✦ 영혼의 성장 ✦</h2>
-  <p>하나의 능력을 선택하세요</p>
+  <p>능력을 선택하세요</p>
   <div class="upgrade-cards" id="upgrade-cards"></div>
+  <div style="text-align:center;margin-top:10px;">
+    <button class="btn gray" style="font-size:11px;padding:5px 12px;"
+      onclick="socket.emit('selectUpgrade','skip');document.getElementById('upgrade-panel').classList.add('hidden')">건너뛰기</button>
+  </div>
 </div>
 
 <!-- 조작 안내 -->
@@ -233,6 +355,9 @@ let myId=null, myRole=null, myHp=100, myMaxHp=100;
 let mySpeedMult=1, mySkillMult=1;
 let isReady=false, roomId=null, gameScene=null;
 let myDead=false;
+let myXp=0, myLevel=1, myCdMult=1, myAspdMult=1;
+let myInventory=[], myEquipped={};
+let mapData=null, mapPositions={};
 
 const MAP=1100;
 const ROLE_COLOR={attacker:0xff5533,tanker:0x3366ff,healer:0x33ff88};
@@ -317,13 +442,80 @@ socket.on('gameStart',data=>{
 });
 
 socket.on('waveStart',data=>{
-  updateWaveInfo(data.stage,data.wave,data.totalWaves);
+  document.getElementById('wave-info').textContent=`STAGE ${data.stage} — 전투`;
   if(gameScene)gameScene.onWaveStart(data.enemies);
-  notify(`STAGE ${data.stage}  WAVE ${data.wave}/${data.totalWaves}`,3000);
+  notify(`전투 시작!`,2500,'#ff8844');
 });
-socket.on('waveClear',()=>notify('WAVE CLEAR!',2500,'#88ff88'));
+socket.on('mobRoomClear',()=>notify('전투 클리어!',2500,'#88ff88'));
 socket.on('clearAllProjectiles',()=>{if(gameScene)gameScene.clearProjectiles();});
-socket.on('preBossWarning',data=>{notify(`⚠ BOSS : ${data.name}`,4000,'#ff8844');});
+
+// ===== 맵 시스템 =====
+socket.on('mapState',data=>{
+  mapData=data.nodes;
+  document.getElementById('map-title').textContent=`지도 — STAGE ${data.stage}`;
+  document.getElementById('wave-info').textContent=`STAGE ${data.stage}`;
+  document.getElementById('map-panel').classList.remove('hidden');
+  document.getElementById('equip-room-panel').classList.add('hidden');
+  document.getElementById('boss-bar').classList.add('hidden');
+  renderMap(mapData, data.currentNodeId);
+});
+socket.on('roomEntered',data=>{
+  document.getElementById('map-panel').classList.add('hidden');
+  document.getElementById('inv-panel').classList.add('hidden');
+  if(data.type==='equipment'){
+    // equipOffer 수신 대기
+  } else {
+    document.getElementById('equip-room-panel').classList.add('hidden');
+  }
+});
+socket.on('equipOffer',data=>{
+  document.getElementById('equip-room-panel').classList.remove('hidden');
+  const cards=document.getElementById('equip-cards'); cards.innerHTML='';
+  data.offers.forEach(item=>{
+    const d=document.createElement('div'); d.className='eqcard';
+    const slotLabel={weapon:'무기',armor:'갑옷',boots:'신발'}[item.type]||item.type;
+    const roleLabel=item.roles?`(${item.roles.map(r=>({attacker:'공격',tanker:'탱커',healer:'힐러'}[r]||r)).join('/')})`:'';
+    d.innerHTML=`<h3>${item.name}</h3><div class="eq-type">${slotLabel} ${roleLabel||''}</div><p>${item.desc}</p>`;
+    d.onclick=()=>{
+      socket.emit('selectEquipItem',item.id);
+      document.getElementById('equip-room-panel').classList.add('hidden');
+    };
+    cards.appendChild(d);
+  });
+});
+socket.on('equipRoomClear',()=>{
+  document.getElementById('equip-room-panel').classList.add('hidden');
+  notify('장비방 클리어!',1800,'#ffcc44');
+});
+
+// ===== XP / 레벨업 =====
+socket.on('xpUpdate',data=>{
+  myXp=data.xp; myLevel=data.level;
+  document.getElementById('xp-label').textContent=`Lv.${data.level}`;
+  document.getElementById('xp-bar').style.width=(data.xp/data.xpMax*100).toFixed(1)+'%';
+  document.getElementById('xp-text').textContent=`${data.xp}/${data.xpMax}`;
+});
+// 레벨업 → 자동 스탯 알림 (업그레이드 창 없음)
+socket.on('levelUpAuto',data=>{
+  notify(`✦ Lv.${data.level} ✦  공격력↑ 방어↑`,2200,'#c8a0ff');
+});
+// 영혼의 성장 방 → 업그레이드 선택
+socket.on('upgradeOffer',data=>{
+  showUpgradePanel(data.upgrades||data);
+});
+socket.on('upgRoomClear',()=>{
+  document.getElementById('upgrade-panel').classList.add('hidden');
+  notify('성장 완료!',1500,'#aa77ff');
+});
+
+// ===== 스탯 업데이트 (장비/업그레이드) =====
+socket.on('statsUpdate',data=>{
+  mySpeedMult=data.speedMult||1; mySkillMult=data.skillMult||1;
+  myCdMult=data.cdMult||1; myAspdMult=data.aspdMult||1;
+  myInventory=data.inventory||[]; myEquipped=data.equipped||{};
+  if(gameScene)gameScene.updateSpeed(mySpeedMult);
+  refreshInventoryUI();
+});
 socket.on('bossSpawn',data=>{
   document.getElementById('boss-name').textContent=data.name;
   document.getElementById('boss-hp-fill').style.width='100%';
@@ -364,42 +556,23 @@ socket.on('playerHealthUpdate',data=>{
   updatePartyHpBar(data);
 });
 socket.on('playerDisconnected',id=>{if(gameScene)gameScene.onPlayerLeft(id);});
-socket.on('upgradeOffer',opts=>{
+function showUpgradePanel(opts){
   const cards=document.getElementById('upgrade-cards');cards.innerHTML='';
   opts.forEach(u=>{
     const d=document.createElement('div');d.className='upcard';
     d.innerHTML=`<h3>${u.name}</h3><p>${u.desc}</p>`;
     d.onclick=()=>{
       socket.emit('selectUpgrade',u.id);
-      const panel=document.getElementById('upgrade-panel');
-      panel.style.transition='opacity 0.3s ease';
-      panel.style.opacity='0';
-      setTimeout(()=>{panel.classList.add('hidden');panel.style.opacity='';panel.style.transition='';},300);
+      document.getElementById('upgrade-panel').classList.add('hidden');
     };
     cards.appendChild(d);
   });
-  // 서서히 등장
   const panel=document.getElementById('upgrade-panel');
-  panel.style.opacity='0';
-  panel.classList.remove('hidden');
+  panel.style.opacity='0'; panel.classList.remove('hidden');
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    panel.style.transition='opacity 0.6s ease';
-    panel.style.opacity='1';
+    panel.style.transition='opacity 0.4s ease'; panel.style.opacity='1';
   }));
-});
-socket.on('upgradeApplied',data=>{
-  myHp=data.hp;myMaxHp=data.maxHp;
-  mySpeedMult=data.speedMult||mySpeedMult;mySkillMult=data.skillMult||mySkillMult;
-  updateMyHpBar();if(gameScene)gameScene.updateSpeed(mySpeedMult);
-});
-socket.on('upgradesDone',()=>{
-  const panel=document.getElementById('upgrade-panel');
-  if(!panel.classList.contains('hidden')){
-    panel.style.transition='opacity 0.3s ease';
-    panel.style.opacity='0';
-    setTimeout(()=>{panel.classList.add('hidden');panel.style.opacity='';panel.style.transition='';},300);
-  }
-});
+}
 socket.on('gameOver',()=>document.getElementById('game-over').classList.remove('hidden'));
 socket.on('gameClear',()=>document.getElementById('game-clear').classList.remove('hidden'));
 
@@ -439,7 +612,167 @@ function updateMyHpBar(){
   document.getElementById('hp-label').textContent=`HP ${Math.floor(myHp)}/${myMaxHp}`;
   document.getElementById('hp-bar').style.background=pct>50?'#44ff88':pct>25?'#ffcc44':'#ff4444';
 }
-function updateWaveInfo(s,w,t){document.getElementById('wave-info').textContent=`STAGE ${s}  —  WAVE ${w}/${t}`;}
+
+// ===== 맵 렌더링 =====
+function renderMap(nodes, currentNodeId){
+  const canvas=document.getElementById('map-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  mapPositions={};
+
+  // floor 기반 열 배치 (선택형 5층 구조)
+  const byFloor={};
+  nodes.forEach(n=>{const f=n.floor??n.depth??0;if(!byFloor[f])byFloor[f]=[];byFloor[f].push(n);});
+  const maxFloor=Math.max(...nodes.map(n=>n.floor??n.depth??0));
+  const padX=38, padY=28;
+  const colW=(canvas.width-padX*2)/maxFloor;
+
+  nodes.forEach(n=>{
+    const f=n.floor??n.depth??0;
+    const ns=byFloor[f]; const idx=ns.indexOf(n);
+    const x=padX+f*colW;
+    const rowH=(canvas.height-padY*2)/(ns.length);
+    const y=padY+rowH*(idx+0.5);
+    mapPositions[n.id]={x,y};
+  });
+
+  // 층 구분선
+  for(let f=1;f<=maxFloor;f++){
+    const x=padX+f*colW-colW/2;
+    ctx.strokeStyle='#1a0a2a'; ctx.lineWidth=1; ctx.setLineDash([3,6]);
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // 층 레이블
+  const floorLabels={0:'시작',1:'1',2:'2',3:'3',4:'4',5:'5',6:'보스'};
+  ctx.fillStyle='#3a2a5a'; ctx.font='9px monospace'; ctx.textAlign='center';
+  for(let f=0;f<=maxFloor;f++){
+    const x=padX+f*colW;
+    ctx.fillText(f===0?'시작':f===maxFloor?'BOSS':`${f}층`,x,canvas.height-6);
+  }
+
+  // 연결선 (현재 층 → 다음 층만)
+  nodes.forEach(n=>{
+    const from=mapPositions[n.id];
+    if(!n.cleared)return; // 클리어된 노드에서만 연결선 표시
+    n.children.forEach(cid=>{
+      const to=mapPositions[cid];
+      if(!from||!to)return;
+      const cNode=nodes.find(x=>x.id===cid);
+      const avail=cNode&&!cNode.cleared;
+      ctx.strokeStyle=avail?'#6040aa':'#1e1030';
+      ctx.lineWidth=avail?1.5:0.8;
+      ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
+    });
+  });
+
+  // 노드
+  const ICONS={start:'◎',equipment:'⚝',mob:'⚔',boss:'☠',upgrade:'✦'};
+  const LABELS={start:'시작',equipment:'장비',mob:'전투',boss:'보스',upgrade:'성장'};
+  const TYPE_GLOW={boss:'#ff0033',equipment:'#ffcc44',mob:'#ff3355',upgrade:'#aa55ff'};
+  const R=20;
+
+  nodes.forEach(n=>{
+    const pos=mapPositions[n.id]; if(!pos)return;
+    const isCur=n.id===currentNodeId;
+    const isAvail=!n.cleared&&nodes.some(p=>p.cleared&&p.children.includes(n.id));
+    let fill='#0a0a14',stroke='#1a1030',textCol='#3a2a5a';
+    if(n.cleared){fill='#1a1430';stroke='#2e2050';textCol='#4a3a70';}
+    else if(n.type==='boss'){fill=isAvail?'#280010':'#140008';stroke=isAvail?'#cc0033':'#440011';textCol=isAvail?'#ff4466':'#662233';}
+    else if(n.type==='equipment'){fill=isAvail?'#221600':'#110800';stroke=isAvail?'#cc9900':'#443300';textCol=isAvail?'#ffcc44':'#664400';}
+    else if(n.type==='upgrade'){fill=isAvail?'#100020':'#08000f';stroke=isAvail?'#8833cc':'#331155';textCol=isAvail?'#cc88ff':'#442266';}
+    else{fill=isAvail?'#200008':'#100004';stroke=isAvail?'#cc2244':'#440011';textCol=isAvail?'#ff4466':'#552233';}
+    if(isCur){fill='#0a0a30';stroke='#4466ff';textCol='#88aaff';}
+
+    if(isAvail){ctx.shadowColor=TYPE_GLOW[n.type]||'#ff2244';ctx.shadowBlur=15;}
+    else ctx.shadowBlur=0;
+
+    ctx.fillStyle=fill; ctx.strokeStyle=stroke; ctx.lineWidth=isAvail?2:1;
+    ctx.beginPath(); ctx.arc(pos.x,pos.y,R,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+
+    ctx.fillStyle=textCol;
+    ctx.font=`bold 13px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(ICONS[n.type]||'?',pos.x,pos.y);
+    ctx.font='9px monospace';
+    ctx.fillStyle=n.cleared?'#3a2a50':textCol;
+    ctx.fillText(LABELS[n.type]||'',pos.x,pos.y+R+8);
+    if(n.cleared)ctx.fillText('완료',pos.x,pos.y+R+18);
+  });
+
+  // 클릭 감지 반경을 R로 업데이트
+  canvas._nodeR=R;
+}
+
+// 맵 캔버스 클릭
+document.addEventListener('DOMContentLoaded',()=>{
+  const canvas=document.getElementById('map-canvas');
+  canvas.addEventListener('click',e=>{
+    if(!mapData)return;
+    const rect=canvas.getBoundingClientRect();
+    const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+    const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+    for(const [sid,pos] of Object.entries(mapPositions)){
+      const nid=parseInt(sid);
+      if(Math.hypot(mx-pos.x,my-pos.y)<(canvas._nodeR||22)){
+        const node=mapData.find(n=>n.id===nid);
+        if(!node||node.cleared)return;
+        const avail=mapData.some(p=>p.cleared&&p.children.includes(nid));
+        if(avail){socket.emit('selectRoom',nid); return;}
+      }
+    }
+  });
+});
+
+// I키 토글
+document.addEventListener('keydown',e=>{
+  if(e.code==='KeyI')toggleInventory();
+});
+function toggleInventory(){
+  const p=document.getElementById('inv-panel');
+  p.classList.toggle('hidden');
+  if(!p.classList.contains('hidden'))refreshInventoryUI();
+}
+
+// ===== 인벤토리 UI =====
+const ITEM_ICONS={longsword:'⚔',soulBook:'✦',ironArmor:'◈',swiftBoots:'❋'};
+const SLOT_LABELS={weapon:'무기',armor:'갑옷',boots:'신발'};
+
+function refreshInventoryUI(){
+  // 장착 슬롯
+  ['weapon','armor','boots'].forEach(slot=>{
+    const el=document.getElementById('eq-'+slot);
+    const itemId=myEquipped[slot];
+    if(itemId){
+      el.classList.add('filled');
+      el.innerHTML=`<span class="slot-type">${SLOT_LABELS[slot]}</span>`+
+        `<div class="eq-thumb ${itemId}">${ITEM_ICONS[itemId]||'?'}</div>`+
+        `<div style="font-size:9px;color:#a080d0;padding:2px">${getItemName(itemId)}</div>`;
+    } else {
+      el.classList.remove('filled');
+      el.innerHTML=`<span class="slot-type">${SLOT_LABELS[slot]}</span>`+
+        `<div class="eq-thumb empty" style="font-size:14px;color:#3a2050">빈 칸</div>`;
+    }
+  });
+  // 보유 아이템
+  const grid=document.getElementById('inv-grid'); grid.innerHTML='';
+  (myInventory||[]).forEach(item=>{
+    const d=document.createElement('div'); d.className='inv-item';
+    d.innerHTML=`<div class="item-thumb ${item.id}">${ITEM_ICONS[item.id]||'?'}</div>`+
+      `<div class="item-name">${item.name}</div>`;
+    d.title=item.desc||'';
+    d.onclick=()=>socket.emit('equipItem',{itemId:item.id});
+    grid.appendChild(d);
+  });
+}
+function getItemName(id){
+  const names={longsword:'롱소드',soulBook:'영혼의 책',ironArmor:'철갑옷',swiftBoots:'신속한 장화'};
+  return names[id]||id;
+}
+function unequipSlot(slot){
+  if(myEquipped[slot])socket.emit('unequipItem',slot);
+}
 
 const partyData={};
 function renderPartyHp(others){
