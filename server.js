@@ -46,20 +46,20 @@ function getPlayerLevel(xp){
 // ===== 맵 생성 (트리 구조) =====
 function generateMap() {
   const nodes=[]; let nid=0;
-  // 방 비율: 전투 80%, 장비 15%, 성장 5%
-  function randRoomType(){const r=Math.random();return r<0.80?'mob':r<0.95?'equipment':'upgrade';}
+  // 방 비율: 전투 70%, 성장 20%, 장비 10%
+  function randRoomType(){const r=Math.random();return r<0.70?'mob':r<0.90?'upgrade':'equipment';}
   // Floor 0: 시작 (클리어됨)
   nodes.push({id:nid++,type:'start',floor:0,children:[],cleared:true});
-  // Floors 1-5: 각 층 2-3개 방 선택
-  for(let floor=1;floor<=5;floor++){
+  // Floors 1-10: 각 층 2-3개 방 선택
+  for(let floor=1;floor<=10;floor++){
     const count=Math.random()<0.4?2:3;
     for(let i=0;i<count;i++)
       nodes.push({id:nid++,type:randRoomType(),floor,children:[],cleared:false});
   }
-  // Floor 6: 보스
-  nodes.push({id:nid++,type:'boss',floor:6,children:[],cleared:false});
+  // Floor 11: 보스
+  nodes.push({id:nid++,type:'boss',floor:11,children:[],cleared:false});
   // 연결: 각 층의 모든 노드를 다음 층 모든 노드와 연결
-  for(let floor=0;floor<=5;floor++){
+  for(let floor=0;floor<=10;floor++){
     const cur=nodes.filter(n=>n.floor===floor);
     const nxt=nodes.filter(n=>n.floor===floor+1);
     cur.forEach(n=>{n.children=nxt.map(x=>x.id);});
@@ -790,10 +790,10 @@ setInterval(()=>{
             room.projectiles[pid]={id:pid,x:enemy.x,y:enemy.y,vx:nx*5.85,vy:ny*5.85,dmg:enemy.dmg,ttl:140};
             io.to(room.id).emit('enemyShoot',{id:pid,x:enemy.x,y:enemy.y,vx:nx*5.85,vy:ny*5.85});
           }
-          // 10초마다 현위치 100px 이내 순간이동
+          // 10초마다 현위치 400px 이내 순간이동
           if(!enemy.lastTele||now-enemy.lastTele>10000){
             enemy.lastTele=now;
-            const ta=Math.random()*Math.PI*2, tr=50+Math.random()*50;
+            const ta=Math.random()*Math.PI*2, tr=100+Math.random()*300;
             enemy.x=clamp(enemy.x+Math.cos(ta)*tr,-MAP+30,MAP-30);
             enemy.y=clamp(enemy.y+Math.sin(ta)*tr,-MAP+30,MAP-30);
             io.to(room.id).emit('enemyTele',{id:enemy.id,x:enemy.x,y:enemy.y});

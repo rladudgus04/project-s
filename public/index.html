@@ -52,12 +52,12 @@
              padding:10px 18px;background:rgba(0,0,0,0.65);}
     #wave-info{font-size:13px;color:#c8a0ff;letter-spacing:2px;}
     #hp-bar-wrap{display:flex;align-items:center;gap:8px;}
-    #hp-label{font-size:12px;color:#88ff88;min-width:90px;text-align:right;}
-    #hp-bar-bg{width:180px;height:14px;background:rgba(0,0,0,0.5);border:1px solid #336633;}
+    #hp-label{font-size:15px;color:#88ff88;min-width:110px;text-align:right;}
+    #hp-bar-bg{width:220px;height:16px;background:rgba(0,0,0,0.5);border:1px solid #336633;}
     #hp-bar{height:100%;background:#44ff88;transition:width .3s;}
     #party-hp{display:flex;gap:10px;}
-    .party-slot{display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;}
-    .party-bar-bg{width:72px;height:7px;background:rgba(0,0,0,0.5);border:1px solid #333;}
+    .party-slot{display:flex;align-items:center;gap:5px;font-size:13px;color:#aaa;}
+    .party-bar-bg{width:88px;height:9px;background:rgba(0,0,0,0.5);border:1px solid #333;}
     .party-bar{height:100%;transition:width .2s;}
 
     /* 스킬 쿨타임 HUD */
@@ -66,8 +66,8 @@
     #skill-hud.hidden{display:none;}
     .skill-slot{width:52px;height:52px;border:2px solid #6040aa;background:rgba(0,0,0,0.6);
                 position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-    .skill-key{font-size:10px;color:#888;position:absolute;top:3px;left:5px;}
-    .skill-name{font-size:9px;color:#c8a0ff;text-align:center;}
+    .skill-key{font-size:12px;color:#888;position:absolute;top:3px;left:5px;}
+    .skill-name{font-size:11px;color:#c8a0ff;text-align:center;}
     .skill-cool{position:absolute;inset:0;background:rgba(0,0,0,0.7);display:flex;
                 align-items:center;justify-content:center;font-size:13px;color:#fff;}
     .skill-cool.hidden{display:none;}
@@ -76,40 +76,40 @@
     #boss-bar{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
               width:480px;text-align:center;z-index:5;pointer-events:none;}
     #boss-bar.hidden{display:none;}
-    #boss-name{font-size:14px;color:#ff8888;letter-spacing:3px;margin-bottom:5px;text-shadow:0 0 10px #ff2222;}
+    #boss-name{font-size:17px;color:#ff8888;letter-spacing:3px;margin-bottom:5px;text-shadow:0 0 10px #ff2222;}
     #boss-hp-bg{width:100%;height:16px;background:rgba(0,0,0,0.6);border:1px solid #aa2222;}
     #boss-hp-fill{height:100%;background:linear-gradient(90deg,#880000,#ff2222);transition:width .2s;}
 
     /* XP 바 */
     #xp-wrap{display:flex;align-items:center;gap:7px;}
-    #xp-label{font-size:12px;color:#c8a0ff;min-width:38px;}
-    #xp-bar-bg{width:130px;height:9px;background:rgba(0,0,0,0.5);border:1px solid #5030aa;}
+    #xp-label{font-size:14px;color:#c8a0ff;min-width:44px;}
+    #xp-bar-bg{width:160px;height:11px;background:rgba(0,0,0,0.5);border:1px solid #5030aa;}
     #xp-bar{height:100%;background:linear-gradient(90deg,#7030ee,#c080ff);transition:width .35s;}
-    #xp-text{font-size:10px;color:#8060b0;min-width:46px;}
+    #xp-text{font-size:12px;color:#8060b0;min-width:54px;}
 
     /* 맵 패널 */
     #map-panel{position:absolute;inset:0;background:rgba(2,0,8,0.97);display:flex;
                flex-direction:column;align-items:center;justify-content:center;z-index:18;}
     #map-panel.hidden{display:none;}
-    #map-title{font-size:22px;color:#c8a0ff;letter-spacing:4px;margin-bottom:20px;
+    #map-title{font-size:26px;color:#c8a0ff;letter-spacing:4px;margin-bottom:20px;
                text-shadow:0 0 18px #8040ff;}
     #map-canvas{cursor:pointer;border:1px solid #3a1a5a;border-radius:4px;}
-    #map-hint{font-size:12px;color:#5040a0;letter-spacing:2px;margin-top:14px;}
+    #map-hint{font-size:14px;color:#5040a0;letter-spacing:2px;margin-top:14px;}
     #map-inv-btn{position:absolute;top:18px;right:22px;padding:8px 18px;cursor:pointer;
                  border:1px solid #6040aa;background:rgba(60,20,100,0.4);color:#c8a0ff;
                  font-size:13px;font-family:inherit;letter-spacing:2px;}
     #map-inv-btn:hover{background:rgba(100,40,180,0.6);}
 
     /* 인벤토리 패널 */
-    #inv-panel{position:absolute;right:14px;top:58px;width:450px;
+    #inv-panel{position:absolute;right:14px;top:58px;width:550px;
                background:rgba(4,0,12,0.97);border:1px solid #4a2080;z-index:19;padding:18px;}
     #inv-panel.hidden{display:none;}
-    #inv-title{font-size:16px;color:#c8a0ff;letter-spacing:3px;margin-bottom:14px;text-align:center;}
+    #inv-title{font-size:19px;color:#c8a0ff;letter-spacing:3px;margin-bottom:14px;text-align:center;}
     #inv-content{display:flex;gap:18px;}
-    #inv-equipped{flex:0 0 124px;}
+    #inv-equipped{flex:0 0 140px;}
     #inv-backpack{flex:1;}
-    .inv-section{font-size:11px;color:#5040a0;margin-bottom:9px;letter-spacing:2px;}
-    .eq-slot{width:118px;height:78px;border:1px solid #3a1a60;background:rgba(50,0,90,0.25);
+    .inv-section{font-size:13px;color:#5040a0;margin-bottom:9px;letter-spacing:2px;}
+    .eq-slot{width:134px;height:96px;border:1px solid #3a1a60;background:rgba(50,0,90,0.25);
              margin-bottom:8px;display:flex;flex-direction:column;align-items:center;
              justify-content:center;cursor:pointer;text-align:center;font-size:11px;
              color:#6050a0;transition:.15s;position:relative;overflow:hidden;}
@@ -117,21 +117,21 @@
     .eq-slot.filled{border-color:#c8a0ff;color:#c8a0ff;}
     .slot-type{font-size:9px;color:#4a3070;position:absolute;top:3px;left:5px;}
     .inv-grid{display:flex;flex-wrap:wrap;gap:6px;}
-    .inv-item{width:78px;height:70px;border:1px solid #3a1a60;background:rgba(40,0,70,0.25);
+    .inv-item{width:96px;height:88px;border:1px solid #3a1a60;background:rgba(40,0,70,0.25);
               display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-              cursor:pointer;text-align:center;font-size:9px;color:#a070c0;transition:.15s;
+              cursor:pointer;text-align:center;font-size:11px;color:#a070c0;transition:.15s;
               padding:0;overflow:hidden;}
     .inv-item:hover{border-color:#c8a0ff;background:rgba(80,20,130,0.4);}
     /* 아이템 더미 이미지 */
-    .item-thumb{width:100%;height:44px;display:flex;align-items:center;justify-content:center;
-                font-size:20px;flex-shrink:0;}
+    .item-thumb{width:100%;height:58px;display:flex;align-items:center;justify-content:center;
+                font-size:24px;flex-shrink:0;}
     .item-thumb.longsword{background:url('/assets/weapon/long_sword.png') center/contain no-repeat, linear-gradient(135deg,#331100,#aa4400,#ff8822);}
     .item-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
     .item-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
     .item-thumb.swiftBoots{background:linear-gradient(135deg,#001a00,#116622,#44bb66);}
     .item-thumb.empty{background:rgba(20,0,40,0.4);}
-    .item-name{padding:3px 2px;font-size:9px;color:#a070c0;width:100%;text-align:center;}
-    .eq-thumb{width:100%;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+    .item-name{padding:4px 2px;font-size:11px;color:#a070c0;width:100%;text-align:center;}
+    .eq-thumb{width:100%;height:58px;display:flex;align-items:center;justify-content:center;font-size:26px;}
     .eq-thumb.longsword{background:url('/assets/weapon/long_sword.png') center/contain no-repeat, linear-gradient(135deg,#331100,#aa4400,#ff8822);}
     .eq-thumb.soulBook{background:linear-gradient(135deg,#001133,#1133aa,#5577ff);}
     .eq-thumb.ironArmor{background:linear-gradient(135deg,#1a1a22,#445566,#99aabb);}
@@ -286,7 +286,9 @@
 <!-- 맵 패널 -->
 <div id="map-panel" class="hidden">
   <div id="map-title">지도 — STAGE 1</div>
-  <canvas id="map-canvas" width="620" height="320"></canvas>
+  <div id="map-canvas-wrap" style="overflow-x:auto;max-width:90vw;">
+    <canvas id="map-canvas" width="1300" height="340"></canvas>
+  </div>
   <div id="map-hint">방을 클릭하여 이동하세요 &nbsp;|&nbsp; I : 인벤토리</div>
   <button id="map-inv-btn" onclick="toggleInventory()">인벤토리 [I]</button>
 </div>
@@ -335,7 +337,7 @@
 
 <!-- 조작 안내 -->
 <div id="controls" class="hidden">
-  방향키 이동 &nbsp;|&nbsp; Z 기본공격 &nbsp;|&nbsp; X 스킬 &nbsp;|&nbsp; SPACE 대시
+  방향키 이동 &nbsp;|&nbsp; Z 기본공격 &nbsp;|&nbsp; X 스킬 &nbsp;|&nbsp; C 대시
 </div>
 
 <div id="game-over" class="hidden">
@@ -465,8 +467,10 @@ socket.on('mobRoomClear',()=>notify('전투 클리어!',2500,'#88ff88'));
 socket.on('clearAllProjectiles',()=>{if(gameScene)gameScene.clearProjectiles();});
 
 // ===== 맵 시스템 =====
+let currentMapNodeId=0;
 socket.on('mapState',data=>{
   mapData=data.nodes;
+  currentMapNodeId=data.currentNodeId;
   document.getElementById('map-title').textContent=`지도 — STAGE ${data.stage}`;
   document.getElementById('wave-info').textContent=`STAGE ${data.stage}`;
   document.getElementById('map-panel').classList.remove('hidden');
@@ -642,7 +646,7 @@ function renderMap(nodes, currentNodeId){
   const byFloor={};
   nodes.forEach(n=>{const f=n.floor??n.depth??0;if(!byFloor[f])byFloor[f]=[];byFloor[f].push(n);});
   const maxFloor=Math.max(...nodes.map(n=>n.floor??n.depth??0));
-  const padX=38, padY=28;
+  const padX=50, padY=28;
   const colW=(canvas.width-padX*2)/maxFloor;
 
   nodes.forEach(n=>{
@@ -663,7 +667,7 @@ function renderMap(nodes, currentNodeId){
   ctx.setLineDash([]);
 
   // 층 레이블
-  const floorLabels={0:'시작',1:'1',2:'2',3:'3',4:'4',5:'5',6:'보스'};
+  const floorLabels={0:'시작',1:'1',2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',11:'보스'};
   ctx.fillStyle='#3a2a5a'; ctx.font='9px monospace'; ctx.textAlign='center';
   for(let f=0;f<=maxFloor;f++){
     const x=padX+f*colW;
@@ -736,6 +740,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       if(Math.hypot(mx-pos.x,my-pos.y)<(canvas._nodeR||22)){
         const node=mapData.find(n=>n.id===nid);
         if(!node||node.cleared)return;
+        const curNode=mapData.find(n=>n.id===currentMapNodeId);
+        const curFloor=curNode?curNode.floor:0;
+        if(node.floor<=curFloor)return; // 지나온 층 선택 불가
         const avail=mapData.some(p=>p.cleared&&p.children.includes(nid));
         if(avail){socket.emit('selectRoom',nid); return;}
       }
@@ -916,7 +923,7 @@ class GameScene extends Phaser.Scene {
     this.cursors=this.input.keyboard.createCursorKeys();
     this.keyZ=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.keyX=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
-    this.keySpace=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.keySpace=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     this.dashCooldown=false;
   }
 
@@ -1040,12 +1047,29 @@ class GameScene extends Phaser.Scene {
     // 무적 오라 위치 동기화
     if(this.invincibleFx)this.invincibleFx.setPosition(this.soul.x,this.soul.y);
 
+    // 타 플레이어 lerp
     Object.values(this.otherPlayers).forEach(s=>{
+      if(s._tx!=null){s.x=Phaser.Math.Linear(s.x,s._tx,0.22);s.y=Phaser.Math.Linear(s.y,s._ty,0.22);}
       if(s.label)s.label.setPosition(s.x-8,s.y-38);
       if(s.flame)s.flame.setPosition(s.x,s.y);
       if(s._invincibleFx)s._invincibleFx.setPosition(s.x,s.y);
       if(s.hpBar)this.drawHpBar(s.hpBar,s.x,s.y,s.hp||100,s.maxHp||100,ROLE_COLOR[s.role]||0x44ff88);
     });
+
+    // 적 lerp + HP바
+    Object.values(this.enemies).forEach(s=>{
+      if(s._tx!=null){s.x=Phaser.Math.Linear(s.x,s._tx,0.22);s.y=Phaser.Math.Linear(s.y,s._ty,0.22);}
+      if(s.hpBar){const hpColor=s.type==='melee'?0xcc44ff:s.type==='elite'?0xff4400:0xffcc00;this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,hpColor);}
+    });
+
+    // 보스 lerp
+    if(this.boss&&this.boss._tx!=null){
+      this.boss.x=Phaser.Math.Linear(this.boss.x,this.boss._tx,0.22);
+      this.boss.y=Phaser.Math.Linear(this.boss.y,this.boss._ty,0.22);
+      if(this.boss.hpBar)this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-46,this.boss.hp,this.boss.maxHp,0xff2222);
+      if(this.bossAura)this.bossAura.setPosition(this.boss.x,this.boss.y);
+      if(this._groggyRing)this._groggyRing.setPosition(this.boss.x,this.boss.y);
+    }
 
     // 이동하는 스킬 투사체 업데이트
     if(this.movingSlash){
@@ -1198,67 +1222,311 @@ class GameScene extends Phaser.Scene {
     if(type==='tanker_barrier'||type==='healer_invincible')return; // 별도 처리
 
     if(role==='attacker'&&type==='z'){
-      // 반원형 공격 — Z 기본 공격
-      this.drawFanAttack(x,y,dirX,dirY,angle,isMine);
+      // ── 검 휘두르기: 우→좌 스윕 애니메이션 ──
+      this.drawSwordSlash(x,y,dirX,dirY,angle,isMine);
     } else if(role==='tanker'&&type==='z'){
-      // 부채꼴 공격 (시각 = 히트박스 일치)
-      const radius=150, halfAngle=Math.PI*0.3;
-      const g=this.add.graphics();g.setDepth(5);
-      g.fillStyle(0x8899ff,0.45);
-      g.beginPath();g.moveTo(x,y);
-      for(let i=0;i<=10;i++){
-        const a=angle-halfAngle+(i/10)*halfAngle*2;
-        g.lineTo(x+Math.cos(a)*radius,y+Math.sin(a)*radius);
-      }
-      g.closePath();g.fillPath();
-      g.lineStyle(2,0xaabbff,0.7);g.strokePath();
-      this.tweens.add({targets:g,alpha:0,duration:200,onComplete:()=>g.destroy()});
-      if(isMine)this.checkFanHit(x,y,dirX,dirY,radius,halfAngle,BASE_DMG[role]);
+      // ── 부채꼴 바람: 안쪽→바깥 확장 이펙트 ──
+      this.drawWindFan(x,y,dirX,dirY,angle,isMine);
     } else if(role==='healer'&&type==='z'){
-      // 범위 1.5배: 165px → 210px 확장
-      const eff=this.add.circle(x,y,165,0x33ff88,0.18);eff.setDepth(4);
-      this.tweens.add({targets:eff,radius:210,alpha:0,duration:600,onComplete:()=>eff.destroy()});
-      if(isMine){
-        const healRange=180;
-        socket.emit('healPlayer',{amount:15});
-        Object.values(this.otherPlayers).forEach(op=>{
-          if(Phaser.Math.Distance.Between(x,y,op.x,op.y)<healRange)
-            socket.emit('healPlayer',{targetId:op.playerId,amount:15});
-        });
-        // 범위 내 적에게 소량 데미지
-        const healDmg=20*(mySkillMult||1);
-        Object.entries(this.enemies).forEach(([id,s])=>{
-          if(Phaser.Math.Distance.Between(x,y,s.x,s.y)<healRange){
-            socket.emit('hitEnemy',{enemyId:id,damage:healDmg});
-            this.spawnHitEffect(s.x,s.y,0x44ff88);
-          }
-        });
-        if(this.boss&&Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y)<healRange){
-          socket.emit('hitEnemy',{enemyId:'boss',damage:healDmg});
-          this.spawnHitEffect(this.boss.x,this.boss.y,0x44ff88);
-        }
-      }
+      // ── 십자가 + 신성 이펙트 ──
+      this.drawHolyCross(x,y,isMine);
     }
   }
 
-  // 부채꼴 공격 (공격자 기본 Z) — 반경 160px
-  drawFanAttack(x,y,dx,dy,angle,isMine){
+  // ── 공격적인 영혼: 직선 칼날 + 코등이 불꽃 부채꼴 휘두르기 ──
+  drawSwordSlash(x,y,dx,dy,angle,isMine){
     const radius=160, halfAngle=Math.PI*0.5;
-    const g=this.add.graphics();
-    g.setDepth(5);
-    g.fillStyle(0xff3300,0.45);
-    g.beginPath();
-    g.moveTo(x,y);
-    const steps=12;
-    for(let i=0;i<=steps;i++){
-      const a=angle-halfAngle+(i/steps)*halfAngle*2;
-      g.lineTo(x+Math.cos(a)*radius,y+Math.sin(a)*radius);
+    const C=ROLE_COLOR['attacker'];
+    const OFS=20;   // 코등이(가드) 위치 — 캐릭터 반경(14) 바깥
+    const BL=132;   // 검날 길이
+    const BW=5;     // 검날 반폭
+    const TP=0.72;  // 테이퍼 시작 지점 (이 지점부터 뾰족해짐)
+    const startRot=angle-halfAngle, endRot=angle+halfAngle;
+
+    // 검 그리기 함수 (로컬 좌표)
+    const drawSword=(g,alpha)=>{
+      g.fillStyle(C,alpha);
+      // 칼날: 직선 → 끝에서 수렴
+      g.beginPath();
+      g.moveTo(OFS,       -BW);
+      g.lineTo(OFS+BL*TP, -BW);   // 직선 구간 상단
+      g.lineTo(OFS+BL,     0);    // 칼끝
+      g.lineTo(OFS+BL*TP,  BW);   // 직선 구간 하단
+      g.lineTo(OFS,        BW);
+      g.closePath(); g.fillPath();
+      // 코등이
+      g.fillRect(OFS-8,-21,8,42);
+      g.fillCircle(OFS-8,-21,5);
+      g.fillCircle(OFS-8, 21,5);
+      // 손잡이 (일자)
+      g.fillRect(OFS-32,-3.5,24,7);
+    };
+
+    // ① 부채꼴 호 배경
+    const arcG=this.add.graphics(); arcG.setDepth(3);
+    arcG.fillStyle(C,0.06);
+    arcG.beginPath(); arcG.moveTo(x,y);
+    for(let i=0;i<=16;i++){
+      const a=startRot+(i/16)*halfAngle*2;
+      arcG.lineTo(x+Math.cos(a)*(OFS+BL),y+Math.sin(a)*(OFS+BL));
     }
-    g.closePath();g.fillPath();
-    g.lineStyle(2,0xff6644,0.6);g.strokePath();
-    this.tweens.add({targets:g,alpha:0,duration:220,onComplete:()=>g.destroy()});
+    arcG.closePath(); arcG.fillPath();
+    arcG.lineStyle(1.5,C,0.25);
+    arcG.beginPath();
+    for(let i=0;i<=16;i++){
+      const a=startRot+(i/16)*halfAngle*2;
+      if(i===0)arcG.moveTo(x+Math.cos(a)*(OFS+BL),y+Math.sin(a)*(OFS+BL));
+      else     arcG.lineTo(x+Math.cos(a)*(OFS+BL),y+Math.sin(a)*(OFS+BL));
+    }
+    arcG.strokePath();
+    this.tweens.add({targets:arcG,alpha:0,duration:340,onComplete:()=>arcG.destroy()});
+
+    // ② 잔상 10개 — 호 각도 균등 배치, 앞쪽일수록 진하게
+    for(let g=0;g<10;g++){
+      const gFrac=g/10;
+      const gh=this.add.container(x,y);
+      gh.setDepth(4); gh.setRotation(startRot+gFrac*halfAngle*2);
+      gh.setAlpha(0.06+gFrac*0.22);
+      const gg=this.add.graphics();
+      drawSword(gg,0.6+gFrac*0.32);
+      gh.add(gg);
+      this.tweens.add({targets:gh,alpha:0,duration:150+g*28,onComplete:()=>gh.destroy()});
+    }
+
+    // ③ 메인 검 — 부채꼴 회전
+    const ct=this.add.container(x,y); ct.setDepth(5);
+    ct.setRotation(startRot);
+    const sg=this.add.graphics();
+    // 발광 외곽
+    sg.fillStyle(C,0.18);
+    sg.beginPath();
+    sg.moveTo(OFS,       -(BW+5));
+    sg.lineTo(OFS+BL*TP, -(BW+5));
+    sg.lineTo(OFS+BL+7,   0);
+    sg.lineTo(OFS+BL*TP,  (BW+5));
+    sg.lineTo(OFS,        (BW+5));
+    sg.closePath(); sg.fillPath();
+    drawSword(sg,0.95);
+    ct.add(sg);
+    ct.setAlpha(0.15);
+    this.tweens.add({targets:ct,rotation:endRot,alpha:1,duration:210,ease:'Cubic.out',
+      onComplete:()=>this.tweens.add({targets:ct,alpha:0,duration:75,onComplete:()=>ct.destroy()})});
+
+    // ④ 코등이 불꽃 — 스윕 경로의 코등이 위치마다 파티클 생성
+    for(let f=0;f<14;f++){
+      const fFrac=f/13;
+      const fAng=startRot+fFrac*halfAngle*2;
+      const gx=x+Math.cos(fAng)*OFS, gy=y+Math.sin(fAng)*OFS;
+      // 코등이 끝 두 지점 (가드 양 끝)에서 불꽃
+      [-1,1].forEach(side=>{
+        const perpAng=fAng+Math.PI/2*side;
+        const flameColors=[0xff6600,0xff9900,0xff3300,0xffcc00];
+        for(let p=0;p<2;p++){
+          const fc=this.add.circle(
+            gx+Math.cos(fAng+Math.PI/2*side)*18,
+            gy+Math.sin(fAng+Math.PI/2*side)*18,
+            1.5+Math.random()*2.5,
+            flameColors[Math.floor(Math.random()*flameColors.length)],0.9);
+          fc.setDepth(6);
+          const spread=10+Math.random()*18;
+          this.time.delayedCall(fFrac*180+p*30,()=>{
+            this.tweens.add({targets:fc,
+              x:fc.x+Math.cos(perpAng+Math.random()*0.6-0.3)*spread,
+              y:fc.y+Math.sin(perpAng+Math.random()*0.6-0.3)*spread,
+              alpha:0,scale:0.1,duration:180+Math.random()*100,
+              onComplete:()=>fc.destroy()});
+          });
+        }
+      });
+    }
+
+    // ⑤ 칼끝 섬광 — 호를 따라 5개 순차
+    for(let i=0;i<5;i++){
+      const tAng=startRot+(i/4)*halfAngle*2;
+      const tx=x+Math.cos(tAng)*(OFS+BL), ty=y+Math.sin(tAng)*(OFS+BL);
+      this.time.delayedCall(i*45,()=>{
+        const gl=this.add.circle(tx,ty,4,C,0.75); gl.setDepth(6);
+        this.tweens.add({targets:gl,scale:2.8,alpha:0,duration:200,ease:'Cubic.out',onComplete:()=>gl.destroy()});
+      });
+    }
 
     if(isMine)this.checkFanHit(x,y,dx,dy,radius,halfAngle,BASE_DMG['attacker']);
+  }
+
+  // ── 강인한 영혼: 부채꼴 바람 안쪽→바깥 확장 ──
+  drawWindFan(x,y,dx,dy,angle,isMine){
+    const radius=150, halfAngle=Math.PI*0.3;
+
+    // 1. 팬 레이어 3겹: 각기 다른 딜레이로 확장
+    for(let layer=0;layer<3;layer++){
+      const g=this.add.graphics(); g.setDepth(4);
+      const delay=layer*40;
+      const t0ref={v:0};
+      this.time.delayedCall(delay,()=>{
+        const start=this.time.now;
+        const ev=this.time.addEvent({delay:16,loop:true,callback:()=>{
+          const prog=Math.min((this.time.now-start)/220,1);
+          g.clear();
+          const curR=radius*(0.15+prog*0.85);
+          g.fillStyle(0x88ccff,0.13*(1-prog*0.6)+0.04);
+          g.beginPath(); g.moveTo(x,y);
+          for(let i=0;i<=10;i++){
+            const a=angle-halfAngle+(i/10)*halfAngle*2;
+            g.lineTo(x+Math.cos(a)*curR,y+Math.sin(a)*curR);
+          }
+          g.closePath(); g.fillPath();
+          g.lineStyle(1.5,0xaaddff,0.35*(1-prog*0.5));
+          g.beginPath(); g.moveTo(x,y);
+          for(let i=0;i<=10;i++){
+            const a=angle-halfAngle+(i/10)*halfAngle*2;
+            g.lineTo(x+Math.cos(a)*curR,y+Math.sin(a)*curR);
+          }
+          g.closePath(); g.strokePath();
+          if(prog>=1){ev.remove(); this.tweens.add({targets:g,alpha:0,duration:130,onComplete:()=>g.destroy()});}
+        }});
+      });
+    }
+
+    // 2. 바람 줄기: 부채꼴 내부에서 빠르게 퍼지는 방사선
+    const streakCount=14;
+    for(let i=0;i<streakCount;i++){
+      const frac=i/(streakCount-1);
+      const a=angle-halfAngle+frac*halfAngle*2;
+      const jitter=(Math.random()-0.5)*0.08;
+      const finalA=a+jitter;
+      const sLen=radius*(0.55+Math.random()*0.45);
+      const sStart=radius*0.1;
+      const g=this.add.graphics(); g.setDepth(5);
+      const delay=Math.random()*60;
+      this.time.delayedCall(delay,()=>{
+        const start=this.time.now;
+        const ev=this.time.addEvent({delay:16,loop:true,callback:()=>{
+          const prog=Math.min((this.time.now-start)/190,1);
+          g.clear();
+          const curEnd=sStart+prog*(sLen-sStart);
+          g.lineStyle(1.5,0xcceeFF,0.6*(1-prog*0.4));
+          g.beginPath();
+          g.moveTo(x+Math.cos(finalA)*sStart,y+Math.sin(finalA)*sStart);
+          g.lineTo(x+Math.cos(finalA)*curEnd, y+Math.sin(finalA)*curEnd);
+          g.strokePath();
+          if(prog>=1){ev.remove(); this.tweens.add({targets:g,alpha:0,duration:100,onComplete:()=>g.destroy()});}
+        }});
+      });
+    }
+
+    // 3. 끝단 충격 아크
+    this.time.delayedCall(180,()=>{
+      const arcG=this.add.graphics(); arcG.setDepth(5);
+      arcG.lineStyle(3,0xeef8ff,0.7);
+      arcG.beginPath();
+      for(let i=0;i<=10;i++){
+        const a=angle-halfAngle+(i/10)*halfAngle*2;
+        if(i===0)arcG.moveTo(x+Math.cos(a)*radius,y+Math.sin(a)*radius);
+        else arcG.lineTo(x+Math.cos(a)*radius,y+Math.sin(a)*radius);
+      }
+      arcG.strokePath();
+      this.tweens.add({targets:arcG,alpha:0,scale:1.05,duration:180,onComplete:()=>arcG.destroy()});
+    });
+
+    if(isMine)this.checkFanHit(x,y,dx,dy,radius,halfAngle,BASE_DMG['tanker']);
+  }
+
+  // ── 도움의 영혼: 십자가 + 신성 이펙트 (컨테이너 기반, 버그 수정) ──
+  drawHolyCross(x,y,isMine){
+    const crossR=120, healRange=180;
+    const GREEN=0x00ff88, BRIGHT=0xaaffcc, PALE=0x44ffaa;
+
+    // 1. 십자가 — container(x,y) 기준으로 로컬 좌표 사용 (scale 버그 방지)
+    const c=this.add.container(x,y); c.setDepth(6);
+    const cg=this.add.graphics();
+    // 외곽 글로우
+    cg.lineStyle(12,GREEN,0.22);
+    cg.beginPath(); cg.moveTo(0,-crossR); cg.lineTo(0,crossR); cg.strokePath();
+    cg.beginPath(); cg.moveTo(-crossR,0); cg.lineTo(crossR,0); cg.strokePath();
+    // 메인 라인
+    cg.lineStyle(5,GREEN,0.88);
+    cg.beginPath(); cg.moveTo(0,-crossR); cg.lineTo(0,crossR); cg.strokePath();
+    cg.beginPath(); cg.moveTo(-crossR,0); cg.lineTo(crossR,0); cg.strokePath();
+    // 코어
+    cg.lineStyle(2,BRIGHT,0.95);
+    cg.beginPath(); cg.moveTo(0,-crossR); cg.lineTo(0,crossR); cg.strokePath();
+    cg.beginPath(); cg.moveTo(-crossR,0); cg.lineTo(crossR,0); cg.strokePath();
+    // 중앙 원
+    cg.fillStyle(BRIGHT,0.9); cg.fillCircle(0,0,9);
+    cg.fillStyle(GREEN,0.5);  cg.fillCircle(0,0,18);
+    c.add(cg);
+
+    // 서서히 커지는 애니메이션 (캐릭터 위치 기준)
+    c.setScale(0.05);
+    this.tweens.add({targets:c,scale:1,duration:220,ease:'Sine.out',
+      onComplete:()=>this.tweens.add({targets:c,alpha:0,duration:360,delay:100,
+        onComplete:()=>c.destroy()})});
+
+    // 2. 끝단 빛 터짐 + 스파크 (딜레이: 십자가 완전히 펼쳐진 후)
+    this.time.delayedCall(180,()=>{
+      [[0,-crossR],[0,crossR],[-crossR,0],[crossR,0]].forEach(([tx,ty])=>{
+        const tip=this.add.circle(x+tx,y+ty,10,BRIGHT,0.85); tip.setDepth(6);
+        this.tweens.add({targets:tip,scale:3.2,alpha:0,duration:480,ease:'Cubic.out',onComplete:()=>tip.destroy()});
+        for(let s=0;s<2;s++){
+          const jA=Math.atan2(ty,tx)+(Math.random()-0.5)*0.5;
+          const sp=this.add.circle(x+tx,y+ty,3,BRIGHT,0.9); sp.setDepth(6);
+          const dist=28+Math.random()*38;
+          this.tweens.add({targets:sp,
+            x:x+tx+Math.cos(jA)*dist,y:y+ty+Math.sin(jA)*dist,
+            alpha:0,duration:340,ease:'Cubic.out',onComplete:()=>sp.destroy()});
+        }
+      });
+    });
+
+    // 3. 신성 링 — 컨테이너로 동일하게 처리
+    const rc=this.add.container(x,y); rc.setDepth(5);
+    const ringG=this.add.graphics();
+    const ringR=healRange*0.9;
+    for(let i=0;i<12;i++){
+      const a0=(i/12)*Math.PI*2, a1=((i+0.65)/12)*Math.PI*2;
+      ringG.lineStyle(2.5,i%2===0?GREEN:PALE,0.8);
+      ringG.beginPath();
+      for(let s=0;s<=5;s++){
+        const aa=a0+(s/5)*(a1-a0);
+        if(s===0)ringG.moveTo(Math.cos(aa)*ringR,Math.sin(aa)*ringR);
+        else ringG.lineTo(Math.cos(aa)*ringR,Math.sin(aa)*ringR);
+      }
+      ringG.strokePath();
+    }
+    rc.add(ringG);
+    rc.setScale(0.1);
+    this.tweens.add({targets:rc,scale:1,duration:260,ease:'Sine.out',
+      onComplete:()=>this.tweens.add({targets:rc,alpha:0,scale:1.12,duration:280,
+        onComplete:()=>rc.destroy()})});
+
+    // 4. 방사형 파티클 8개
+    for(let i=0;i<8;i++){
+      const a=(i/8)*Math.PI*2;
+      const sp=this.add.circle(x,y,4,i%2===0?BRIGHT:GREEN,0.9); sp.setDepth(6);
+      this.tweens.add({targets:sp,
+        x:x+Math.cos(a)*crossR*1.15,y:y+Math.sin(a)*crossR*1.15,
+        alpha:0,scale:0.4,duration:420,ease:'Cubic.out',onComplete:()=>sp.destroy()});
+    }
+
+    // 5. 힐/데미지 처리
+    if(isMine){
+      socket.emit('healPlayer',{amount:15});
+      Object.values(this.otherPlayers).forEach(op=>{
+        if(Phaser.Math.Distance.Between(x,y,op.x,op.y)<healRange)
+          socket.emit('healPlayer',{targetId:op.playerId,amount:15});
+      });
+      const healDmg=20*(mySkillMult||1);
+      Object.entries(this.enemies).forEach(([id,s])=>{
+        if(Phaser.Math.Distance.Between(x,y,s.x,s.y)<healRange){
+          socket.emit('hitEnemy',{enemyId:id,damage:healDmg});
+          this.spawnHitEffect(s.x,s.y,0x44ff88);
+        }
+      });
+      if(this.boss&&Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y)<healRange){
+        socket.emit('hitEnemy',{enemyId:'boss',damage:healDmg});
+        this.spawnHitEffect(this.boss.x,this.boss.y,0x44ff88);
+      }
+    }
   }
 
   checkFanHit(ox,oy,dx,dy,radius,halfAngle,baseDmg){
@@ -1483,6 +1751,7 @@ class GameScene extends Phaser.Scene {
     this.tweens.add({targets:s,scale:1,duration:320,ease:'Back.out'});
 
     s.id=data.id; s.hp=data.hp; s.maxHp=data.maxHp; s.type=data.type;
+    s._tx=data.x; s._ty=data.y;
     s.hpBar=this.add.graphics();
     this.enemies[data.id]=s;
     return s;
@@ -1492,9 +1761,7 @@ class GameScene extends Phaser.Scene {
     Object.values(enemies).forEach(data=>{
       let s=this.enemies[data.id];
       if(!s)s=this.createEnemySprite(data);
-      s.x=data.x; s.y=data.y; s.hp=data.hp;
-      const hpColor=s.type==='melee'?0xcc44ff:s.type==='elite'?0xff4400:0xffcc00;
-      this.drawHpBar(s.hpBar,s.x,s.y,s.hp,s.maxHp,hpColor);
+      s._tx=data.x; s._ty=data.y; s.hp=data.hp;
     });
   }
 
@@ -1625,6 +1892,7 @@ class GameScene extends Phaser.Scene {
     this.boss.setDepth(3);
     this.physics.add.existing(this.boss,true);
     this.boss.hp=data.hp;this.boss.maxHp=data.maxHp;
+    this.boss._tx=0;this.boss._ty=-400;
     this.boss.hpBar=this.add.graphics();
 
     // 박동하는 외부 아우라
@@ -1649,10 +1917,7 @@ class GameScene extends Phaser.Scene {
 
   onBossUpdate(data){
     if(!this.boss)return;
-    this.boss.x=data.x;this.boss.y=data.y;this.boss.hp=data.hp;
-    this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-46,data.hp,data.maxHp,0xff2222);
-    if(this.bossAura)this.bossAura.setPosition(data.x,data.y);
-    if(this._groggyRing)this._groggyRing.setPosition(data.x,data.y);
+    this.boss._tx=data.x;this.boss._ty=data.y;this.boss.hp=data.hp;
     if(!this._groggyTween){
       if(this.bossStage===1){
         if(data.hp/data.maxHp<0.3)this.boss.setTint((Date.now()%400<200)?0xffffff:0xff8844);
@@ -1887,7 +2152,7 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  onPlayerMoved(data){const s=this.otherPlayers[data.playerId];if(s){s.x=data.x;s.y=data.y;}}
+  onPlayerMoved(data){const s=this.otherPlayers[data.playerId];if(s){s._tx=data.x;s._ty=data.y;}}
   onPlayerHpUpdate(data){const s=this.otherPlayers[data.playerId];if(s){s.hp=data.hp;if(data.maxHp)s.maxHp=data.maxHp;}}
   onPlayerLeft(id){
     const s=this.otherPlayers[id];if(!s)return;
