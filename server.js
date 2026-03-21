@@ -96,7 +96,7 @@ function dist(a,b) { return Math.hypot(a.x-b.x,a.y-b.y); }
 function norm(dx,dy) { const d=Math.hypot(dx,dy)||1; return [dx/d,dy/d]; }
 function clamp(v,mn,mx) { return Math.max(mn,Math.min(mx,v)); }
 function getLobbyState(room) {
-  return { roomId:room.id, players:Object.values(room.players).map(p=>({id:p.id,role:p.role,ready:p.ready})) };
+  return { roomId:room.id, players:Object.values(room.players).map(p=>({id:p.id,role:p.role,ready:p.ready,name:p.name||'영혼'})) };
 }
 
 // ===== 대미지 =====
@@ -338,27 +338,23 @@ const BOSS_AI = {
       io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
     }
 
-    // 검기 날리기: 5연발 부채꼴 (버그 수정 + 강화)
+    // 검기 날리기: 부채꼴 동기 생성 (setTimeout 제거 — 동기화 버그 수정)
     const beamCD=phase2?1200:2200;
     if(!boss.lastBeam||now-boss.lastBeam>beamCD){
       boss.lastBeam=now;
       const targets=phase2?alive:[target];
-      targets.forEach((tgt,ti)=>{
+      targets.forEach(tgt=>{
         const baseAng=Math.atan2(tgt.y-boss.y,tgt.x-boss.x);
         const beamCount=phase2?5:3;
         const spread=phase2?0.22:0.15;
         for(let i=0;i<beamCount;i++){
-          setTimeout(()=>{
-            if(!room.boss||!rooms[room.id])return; // 버그 수정
-            const b=room.boss;
-            const ang=baseAng+(i-(beamCount-1)/2)*spread;
-            const pid=`p${room.projId++}`;
-            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
-              vx:Math.cos(ang)*22.1,vy:Math.sin(ang)*22.1,dmg:b.dmg*0.88,ttl:220};
-          },ti*280+i*90);
+          const ang=baseAng+(i-(beamCount-1)/2)*spread;
+          const pid=`p${room.projId++}`;
+          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+            vx:Math.cos(ang)*22.1,vy:Math.sin(ang)*22.1,dmg:boss.dmg*0.88,ttl:220};
         }
       });
-      // 2페이즈: 회전 12방향 검기
+      // 2페이즈: 회전 12방향 검기 추가
       if(phase2){
         boss.crossRot=(boss.crossRot||0)+Math.PI/8;
         for(let i=0;i<12;i++){
@@ -371,22 +367,18 @@ const BOSS_AI = {
       io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:phase2?2:1});
     }
 
-    // 회전 칼날 패턴: 4웨이브 4방향 검기 (서서히 회전)
+    // 회전 칼날 패턴: 4방향 × 4웨이브 동기 생성
     const rotCD=phase2?3500:6000;
     if(!boss.lastRot||now-boss.lastRot>rotCD){
       boss.lastRot=now;
       boss.rotBase=(boss.rotBase||0);
       for(let wave=0;wave<4;wave++){
-        setTimeout(()=>{
-          if(!room.boss||!rooms[room.id])return;
-          const b=room.boss;
-          for(let i=0;i<4;i++){
-            const a=(i/4)*Math.PI*2+b.rotBase+wave*0.18;
-            const pid=`p${room.projId++}`;
-            room.projectiles[pid]={id:pid,x:b.x,y:b.y,
-              vx:Math.cos(a)*13,vy:Math.sin(a)*13,dmg:b.dmg*0.72,ttl:185};
-          }
-        },wave*260);
+        for(let i=0;i<4;i++){
+          const a=(i/4)*Math.PI*2+boss.rotBase+wave*0.18;
+          const pid=`p${room.projId++}`;
+          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,
+            vx:Math.cos(a)*13,vy:Math.sin(a)*13,dmg:boss.dmg*0.72,ttl:185};
+        }
       }
       boss.rotBase+=Math.PI/5;
       io.to(room.id).emit('bossAction',{type:'cross',x:boss.x,y:boss.y,phase:0});
@@ -877,9 +869,12 @@ io.on('connection',socket=>{
     io.to(roomId).emit('lobbyUpdate',getLobbyState(room));
   }
 
-  socket.on('selectRole',role=>{
+  socket.on('selectRole',data=>{
     const room=rooms[socket.roomId];if(!room||room.state!=='lobby')return;
+    const role=typeof data==='string'?data:data.role;
+    const name=typeof data==='object'?((data.name||'').trim().slice(0,10)||'영혼'):'영혼';
     room.players[socket.id].role=role;
+    room.players[socket.id].name=name;
     io.to(socket.roomId).emit('lobbyUpdate',getLobbyState(room));
   });
 

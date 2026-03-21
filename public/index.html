@@ -196,6 +196,34 @@
     #death-overlay.hidden{display:none;}
     #death-overlay h2{font-size:38px;color:#ff4444;text-shadow:0 0 24px #ff0000;margin-bottom:14px;letter-spacing:4px;}
     #death-overlay p{color:#cc8888;font-size:13px;letter-spacing:2px;}
+
+    /* 볼륨 슬라이더 커스텀 — 0%/100% 끝까지 닿도록 */
+    #bgm-vol{
+      -webkit-appearance:none;appearance:none;
+      width:120px;height:4px;border-radius:2px;
+      background:rgba(100,50,200,0.35);outline:none;cursor:pointer;
+      padding:0;margin:0;border:none;vertical-align:middle;
+    }
+    #bgm-vol::-webkit-slider-thumb{
+      -webkit-appearance:none;appearance:none;
+      width:14px;height:14px;border-radius:50%;
+      background:#9955ff;cursor:pointer;
+      box-shadow:0 0 6px #7733cc;
+      margin-top:-5px;
+    }
+    #bgm-vol::-moz-range-thumb{
+      width:14px;height:14px;border-radius:50%;
+      background:#9955ff;cursor:pointer;border:none;
+      box-shadow:0 0 6px #7733cc;
+    }
+    #bgm-vol::-webkit-slider-runnable-track{
+      height:4px;border-radius:2px;
+      background:rgba(100,50,200,0.35);
+    }
+    #bgm-vol::-moz-range-track{
+      height:4px;border-radius:2px;
+      background:rgba(100,50,200,0.35);
+    }
   </style>
 </head>
 <body>
@@ -204,6 +232,17 @@
 <div id="s-title" class="screen">
   <h1>SOUL JOURNEY</h1>
   <p>영혼들의 여정 — 인간이 되기 위한 싸움</p>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:16px;">
+    <input id="nickname-input" maxlength="10" placeholder="닉네임 입력"
+      style="background:rgba(40,0,70,0.7);border:1px solid #6633aa;color:#e0c0ff;
+             padding:7px 14px;border-radius:6px;font-size:14px;text-align:center;width:180px;outline:none;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#7755aa;">🔊 BGM</span>
+      <input type="range" id="bgm-vol" min="0" max="100" value="45" step="1"
+        oninput="bgm.volume=Math.pow(this.value/100,2);document.getElementById('bgm-vol-label').textContent=this.value+'%';">
+      <span id="bgm-vol-label" style="font-size:11px;color:#7755aa;width:32px;text-align:left;display:inline-block;">45%</span>
+    </div>
+  </div>
   <button class="btn" onclick="showCreateRoom()">방 만들기</button>
   <button class="btn gray" onclick="showJoinRoom()">방 참가하기</button>
   <div id="join-area" style="display:none;margin-top:18px;flex-direction:column;align-items:center;gap:10px;">
@@ -367,8 +406,11 @@ function startBgm(){
 // 첫 인터랙션(클릭·키보드)에 자동 시작
 document.addEventListener('click', startBgm, {once:true});
 document.addEventListener('keydown', startBgm, {once:true});
+// 볼륨 슬라이더 레이블 동기화
+// 초기 볼륨: 45% 슬라이더값 → 지수 적용
+bgm.volume=Math.pow(0.45,2);
 
-let myId=null, myRole=null, myHp=100, myMaxHp=100;
+let myId=null, myRole=null, myName='영혼', myHp=100, myMaxHp=100;
 let mySpeedMult=1, mySkillMult=1;
 let isReady=false, roomId=null, gameScene=null;
 let myDead=false;
@@ -411,7 +453,9 @@ function doJoin(){
 }
 function selectRole(role){
   myRole=role;
-  socket.emit('selectRole',role);
+  const name=(document.getElementById('nickname-input')?.value||'').trim().slice(0,10)||'영혼';
+  myName=name;
+  socket.emit('selectRole',{role,name});
   document.getElementById('lobby-msg').textContent=ROLE_NAME[role]+' 선택됨';
 }
 function toggleReady(){
@@ -1007,7 +1051,7 @@ class GameScene extends Phaser.Scene {
     // 벽 충돌
     this.physics.add.collider(this.soul,this.walls);
 
-    this.soulLabel=this.add.text(0,0,'나',{fontSize:'10px',color:'#ffffff',alpha:0.7}).setDepth(5);
+    this.soulLabel=this.add.text(0,0,myName||'나',{fontSize:'10px',color:'#ffffff',alpha:0.7}).setDepth(5);
     this.cameras.main.startFollow(this.soul,true,0.08,0.08);
 
     players.filter(p=>p.id!==myId).forEach(p=>this.addOtherPlayer(p));
@@ -1017,7 +1061,7 @@ class GameScene extends Phaser.Scene {
     const s=this.add.circle(p.x,p.y,1,0x000000,0); // 충돌용 (투명)
     s.playerId=p.id;s.hp=p.hp;s.maxHp=p.maxHp;s.role=p.role;
     s.hpBar=this.add.graphics();
-    s.label=this.add.text(0,0,ROLE_NAME[p.role]?.slice(0,2)||'?',{fontSize:'9px',color:'#aaaaff'}).setDepth(5);
+    s.label=this.add.text(0,0,p.name||ROLE_NAME[p.role]?.slice(0,2)||'?',{fontSize:'9px',color:'#aaaaff'}).setDepth(5);
     s.flame=this.createFlame(p.x,p.y,p.role);
     this.otherPlayers[p.id]=s;
   }
@@ -1066,7 +1110,7 @@ class GameScene extends Phaser.Scene {
     if(this.boss&&this.boss._tx!=null){
       this.boss.x=Phaser.Math.Linear(this.boss.x,this.boss._tx,0.22);
       this.boss.y=Phaser.Math.Linear(this.boss.y,this.boss._ty,0.22);
-      if(this.boss.hpBar)this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-46,this.boss.hp,this.boss.maxHp,0xff2222);
+      if(this.boss.hpBar)this.drawHpBar(this.boss.hpBar,this.boss.x,this.boss.y-56,this.boss.hp,this.boss.maxHp,0xff2222,72,10);
       if(this.bossAura)this.bossAura.setPosition(this.boss.x,this.boss.y);
       if(this._groggyRing)this._groggyRing.setPosition(this.boss.x,this.boss.y);
     }
@@ -1633,10 +1677,10 @@ class GameScene extends Phaser.Scene {
   }
 
   // ===== HP바 =====
-  drawHpBar(g,x,y,hp,maxHp,color){
+  drawHpBar(g,x,y,hp,maxHp,color,w=36,h=5){
     g.clear();
-    g.fillStyle(0x000000,0.6);g.fillRect(x-18,y-25,36,5);
-    g.fillStyle(color,0.9);g.fillRect(x-18,y-25,Math.max(0,36*(hp/maxHp)),5);
+    g.fillStyle(0x000000,0.6);g.fillRect(x-w/2,y-25,w,h);
+    g.fillStyle(color,0.9);g.fillRect(x-w/2,y-25,Math.max(0,w*(hp/maxHp)),h);
   }
 
   // ===== 서버 이벤트 핸들러 =====
