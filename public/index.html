@@ -2244,16 +2244,59 @@ class GameScene extends Phaser.Scene {
       if(this.pillars){Object.values(this.pillars).forEach(p=>{if(p&&p.active)p.destroy();});}
       this.pillars={};
       (data.pillars||[]).forEach(pd=>{
+        // 기준 크기: 200×700 → scale=0.14 (게임 내 28×98 픽셀)
+        const S=0.14;
         const pc=this.add.container(pd.x,pd.y);pc.setDepth(3);
-        const body=this.add.rectangle(0,0,28,28,0x8844cc,0.9);
-        body.setStrokeStyle(3,0xcc88ff,1);
-        const glow=this.add.circle(0,0,22,0x6622aa,0.2);
-        glow.setStrokeStyle(2,0xaa66ff,0.4);
-        pc.add(glow);pc.add(body);
+        const g=this.add.graphics();
+
+        // ① 기단부 (Base) — 넓은 직사각형
+        g.fillStyle(0xc8b8e8,0.95);
+        g.fillRect(-110,-350,220,60);    // 하단 기단
+        g.fillRect(-110, 290,220,60);    // 상단 기단
+
+        // ② 기둥 몸통 — 중앙 세로 직사각형 (미세 테이퍼)
+        g.fillStyle(0xddd0f0,0.92);
+        g.beginPath();
+        g.moveTo(-80,-290); g.lineTo(80,-290);  // 상단 폭
+        g.lineTo(70, 290);  g.lineTo(-70, 290); // 하단 폭 (약간 좁아짐)
+        g.closePath(); g.fillPath();
+
+        // ③ 세로 홈(flute) 8개 — 신전 기둥 특징
+        g.lineStyle(1,0xb8a0d8,0.5);
+        for(let i=0;i<8;i++){
+          const fx=-68+i*19.5;
+          g.moveTo(fx,-285); g.lineTo(fx+5,285);
+        }
+        g.strokePath();
+
+        // ④ 주두(Capital) — 상단 사다리꼴
+        g.fillStyle(0xe8daf8,0.95);
+        g.beginPath();
+        g.moveTo(-80,-290); g.lineTo(80,-290);
+        g.lineTo(110,-350); g.lineTo(-110,-350);
+        g.closePath(); g.fillPath();
+
+        // ⑤ 주초(Base plate) — 하단 사다리꼴
+        g.beginPath();
+        g.moveTo(-70,290); g.lineTo(70,290);
+        g.lineTo(110,350); g.lineTo(-110,350);
+        g.closePath(); g.fillPath();
+
+        // ⑥ 외곽선
+        g.lineStyle(2,0x9966cc,0.8);
+        g.strokeRect(-110,-350,220,700);
+
+        // ⑦ 글로우 오라
+        const glow=this.add.rectangle(0,0,220,700,0x8844cc,0);
+        glow.setStrokeStyle(3,0xcc88ff,0.5);
+
+        pc.add(glow); pc.add(g);
+        pc.setScale(S);
+
         // 박동
-        this.tweens.add({targets:glow,alpha:{from:0.15,to:0.45},duration:700,yoyo:true,repeat:-1});
-        // 스폰 이펙트
-        pc.setScale(0);this.tweens.add({targets:pc,scale:1,duration:400,ease:'Back.out'});
+        this.tweens.add({targets:glow,alpha:{from:0,to:0.18},duration:800,yoyo:true,repeat:-1});
+        // 스폰
+        pc.setScale(0);this.tweens.add({targets:pc,scale:S,duration:400,ease:'Back.out'});
         this.pillars[pd.id]=pc;
       });
     }
@@ -2360,6 +2403,33 @@ class GameScene extends Phaser.Scene {
     if(data.type==='berserk')notify('⚠ 광폭화!',2000,'#ff4444');
     if(data.type==='berserk3')notify('⚠ 극한 광폭화!!',2000,'#ff0000');
     if(data.type==='phase')notify(`페이즈 ${data.n} 돌입!`,2000,'#ff8844');
+
+    // ── 기둥 충돌 스턴 ──
+    if(data.type==='stunned'&&this.boss){
+      // 보스 노란 고정 틴트 + 떨림
+      if(this.bossStage===1)this.boss.setTint(0xffff44);else this.boss.fillColor=0xffff44;
+      if(this._stunTween){this._stunTween.stop();}
+      this._stunTween=this.tweens.add({targets:this.boss,angle:{from:-4,to:4},
+        duration:60,yoyo:true,repeat:Math.floor(data.duration/120),ease:'Linear'});
+      // 충격파 링
+      for(let i=0;i<3;i++){
+        const r=this.add.circle(data.x,data.y,20+i*14,0xffff00,0.6-i*0.15);
+        r.setStrokeStyle(2,0xffee44,0.9);r.setDepth(5);
+        this.tweens.add({targets:r,scale:5+i*1.5,alpha:0,duration:500+i*80,
+          ease:'Cubic.out',delay:i*60,onComplete:()=>r.destroy()});
+      }
+      // 스턴 종료 후 복구
+      this.time.delayedCall(data.duration,()=>{
+        if(this._stunTween){this._stunTween.stop();this._stunTween=null;}
+        if(this.boss){this.boss.setAngle(0);
+          if(this.bossStage===1)this.boss.clearTint();else this.boss.fillColor=0xcc0000;}
+      });
+    }
+    if(data.type==='stunEnd'&&this.boss){
+      if(this._stunTween){this._stunTween.stop();this._stunTween=null;}
+      this.boss.setAngle(0);
+      if(this.bossStage===1)this.boss.clearTint();else this.boss.fillColor=0xcc0000;
+    }
 
     // ── 그로기 ──
     if(data.type==='groggy'){

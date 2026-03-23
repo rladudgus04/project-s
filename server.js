@@ -8,7 +8,7 @@ const MAP = 1100; // 맵 경계 -MAP ~ MAP
 
 const STAGE_CONFIG = [
   { waves:[{melee:36,ranged:10,hp:80,dmg:8},{melee:36,ranged:18,hp:90,dmg:10},{melee:30,ranged:23,hp:100,dmg:12}],
-    boss:{name:'안개의 수호자',hp:8000,dmg:1,speed:4,pattern:'charge'} },
+    boss:{name:'안개의 수호자',hp:8000,dmg:20,speed:4,pattern:'charge'} },
   { waves:[{melee:26,ranged:23,hp:110,dmg:12},{melee:28,ranged:24,hp:120,dmg:14},{melee:29,ranged:25,hp:130,dmg:16}],
     boss:{name:'심연의 파수꾼',hp:10000,dmg:22,speed:8.8,pattern:'spin'} },
   { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
@@ -268,27 +268,38 @@ const BOSS_AI = {
 
     // ── 2페이즈 ──
     if(boss.phase2Triggered && !boss.phase3Triggered) {
-      // 맵 끝→끝 돌진 (3s 경고, 1s 돌진)
+      // 스턴 해제 체크
+      if(boss.stunned && now>=boss.stunEnd){
+        boss.stunned=false;
+        io.to(room.id).emit('bossAction',{type:'stunEnd',x:boss.x,y:boss.y});
+      }
+      // 스턴 중엔 패턴 스킵
+      if(boss.stunned) return;
+
+      // 랜덤 플레이어를 향한 돌진 (2s 경고, 1s 돌진)
       if(!boss.isCharging&&(!boss.lastWallCharge||now-boss.lastWallCharge>5000)){
         boss.lastWallCharge=now;
         const t=alive[Math.floor(Math.random()*alive.length)];
-        const ddx=t.x-boss.x||1,ddy=t.y-boss.y||0;
-        const [dnx,dny]=norm(ddx,ddy);
-        const sx=-dnx*MAP*0.9,sy=-dny*MAP*0.9;
-        const ex=dnx*MAP*0.9,ey=dny*MAP*0.9;
-        io.to(room.id).emit('bossAction',{type:'wallcharge_warn',sx,sy,ex,ey,duration:3000});
+        const tx=t.x, ty=t.y;
+        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:0});
         setTimeout(()=>{
           if(!room.boss)return;
-          boss.isCharging=true; boss.x=sx; boss.y=sy;
-          const total=25,stX=(ex-sx)/total,stY=(ey-sy)/total;
+          boss.isCharging=true;
+          const cx=tx-boss.x,cy=ty-boss.y,cd=Math.hypot(cx,cy)||1;
+          const [bx,by]=[cx/cd,cy/cd];
           let ticks=0;
           const iv=setInterval(()=>{
-            if(!room.boss||ticks++>=total){if(room.boss)boss.isCharging=false;clearInterval(iv);return;}
-            boss.x+=stX;boss.y+=stY;
+            if(!room.boss||ticks++>=25){if(room.boss)boss.isCharging=false;clearInterval(iv);return;}
+            boss.x+=bx*36;boss.y+=by*36;
+            boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
+            // 기둥 충돌 → 3초 스턴
             (room.pillars||[]).forEach(pillar=>{
-              if(!pillar.broken&&dist(boss,pillar)<80){
+              if(!pillar.broken&&dist(boss,pillar)<100){
                 pillar.broken=true;
+                boss.isCharging=false; clearInterval(iv);
+                boss.stunned=true; boss.stunEnd=Date.now()+3000;
                 io.to(room.id).emit('bossAction',{type:'pillar_break',id:pillar.id});
+                io.to(room.id).emit('bossAction',{type:'stunned',x:boss.x,y:boss.y,duration:3000});
                 if((room.pillars||[]).every(p=>p.broken)){
                   room.phase2MechanicSolved=true;
                   io.to(room.id).emit('bossAction',{type:'mechanic2_solved'});
@@ -297,7 +308,7 @@ const BOSS_AI = {
             });
             alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.5);});
           },40);
-        },3000);
+        },2000);
       }
       // 12방향 원형 탄막 (3.5s CD)
       if(!boss.lastSpin2||now-boss.lastSpin2>3500){
@@ -1068,11 +1079,13 @@ io.on('connection',socket=>{
     if((room.state==='boss'||room.state==='playing')&&room.boss&&data.enemyId==='boss'){
       const boss=room.boss;
       const groggyMult=boss.groggy?1.5:1;
+      // 스턴 중 피해 50% 증가
+      const stunMult=boss.stunned?1.5:1.0;
       // 기믹 미해결 시 피해 90% 감소
       const mechBlock=(boss.phase2Triggered&&!room.phase2MechanicSolved)||
                       (boss.phase3Triggered&&!room.phase3MechanicSolved);
       const blockMult=mechBlock?0.1:1.0;
-      const fullDmg=dmg*groggyMult;
+      const fullDmg=dmg*groggyMult*stunMult;
       boss.hp=Math.max(0,boss.hp-fullDmg*blockMult);
       // 3페이즈: 무력화 게이지 충전
       if(boss.phase3Triggered&&!room.phase3MechanicSolved&&!room.phase3Failed){
