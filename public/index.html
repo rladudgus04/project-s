@@ -414,14 +414,38 @@
 const socket = io();
 
 // ===== BGM =====
-const bgm = new Audio('/assets/bgm/main_bgm.mp3');
-bgm.loop = true;
-bgm.volume = 0.45;
+const BGM_LOBBY  = new Audio('/assets/bgm/Labyrinth_of_Lost_Spirits.mp3');
+const BGM_STAGE1 = new Audio('/assets/bgm/stage1/Spiral_of_Eternal_Spirits.mp3');
+const BGM_MAIN   = new Audio('/assets/bgm/main_bgm.mp3');
+const BGM_BOSS12 = new Audio('/assets/bgm/boss1_bgm/boss1_phase1&2.mp3');
+const BGM_BOSS3  = new Audio('/assets/bgm/boss1_bgm/boss1_phase3.mp3');
+[BGM_LOBBY, BGM_STAGE1, BGM_MAIN, BGM_BOSS12, BGM_BOSS3].forEach(a=>{a.loop=true;});
+
+let _bgmVol = Math.pow(0.45, 2);
+let _currentBgm = BGM_LOBBY;
 let bgmStarted = false;
+
+function setBgmVolume(v){
+  _bgmVol = v;
+  [BGM_LOBBY, BGM_STAGE1, BGM_MAIN, BGM_BOSS12, BGM_BOSS3].forEach(a=>a.volume=v);
+}
+setBgmVolume(_bgmVol);
+
+// bgm 변수는 슬라이더 oninput 호환을 위해 proxy 역할
+const bgm = { get volume(){return _bgmVol;}, set volume(v){setBgmVolume(v);} };
+
+function switchBgm(next){
+  if(_currentBgm === next) return;
+  _currentBgm.pause();
+  _currentBgm.currentTime = 0;
+  _currentBgm = next;
+  if(bgmStarted) _currentBgm.play().catch(()=>{});
+}
+
 function startBgm(){
   if(bgmStarted) return;
   bgmStarted = true;
-  bgm.play().catch(()=>{});
+  _currentBgm.play().catch(()=>{});
 }
 // 첫 인터랙션(클릭·키보드)에 자동 시작
 document.addEventListener('click', startBgm, {once:true});
@@ -429,9 +453,6 @@ document.addEventListener('keydown', e=>{
   if(document.activeElement&&document.activeElement.id==='nickname-input')return;
   startBgm();
 }, {once:true});
-// 볼륨 슬라이더 레이블 동기화
-// 초기 볼륨: 45% 슬라이더값 → 지수 적용
-bgm.volume=Math.pow(0.45,2);
 
 let myId=null, myRole=null, myName='영혼', myHp=100, myMaxHp=100;
 let mySpeedMult=1, mySkillMult=1;
@@ -512,6 +533,7 @@ function renderLobby(players){
 
 // ===== 소켓 — 게임 =====
 socket.on('gameStart',data=>{
+  switchBgm(BGM_STAGE1);
   showScreen(null);
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('skill-hud').classList.remove('hidden');
@@ -608,6 +630,7 @@ socket.on('bossSpawn',data=>{
   document.getElementById('boss-bar').classList.remove('hidden');
   if(gameScene)gameScene.onBossSpawn(data);
   notify(`${data.name} 등장!`,2500,'#ff4444');
+  switchBgm(BGM_BOSS12);
 });
 socket.on('bossUpdate',data=>{
   document.getElementById('boss-hp-fill').style.width=Math.max(0,data.hp/data.maxHp*100)+'%';
@@ -616,11 +639,11 @@ socket.on('bossUpdate',data=>{
 socket.on('bossAction',data=>{if(gameScene)gameScene.onBossAction(data);});
 socket.on('bossDead',()=>{
   document.getElementById('boss-bar').classList.add('hidden');
-  // 무력화 게이지 패널 숨기기
   const ngp=document.getElementById('neutral-gauge-panel');
   if(ngp)ngp.classList.add('hidden');
   if(gameScene)gameScene.onBossDead();
   notify('BOSS DEFEATED!',2500,'#ffcc44');
+  switchBgm(BGM_STAGE1);
 });
 socket.on('neutralGaugeUpdate',data=>{
   const fill=document.getElementById('neutral-gauge-fill');
@@ -2355,6 +2378,7 @@ class GameScene extends Phaser.Scene {
 
     // ── 3페이즈: 영혼조각 생성 ──
     if(data.type==='phase3'){
+      switchBgm(BGM_BOSS3);
       // 기존 조각 정리
       if(this.soulFragments){Object.values(this.soulFragments).forEach(f=>{if(f&&f.active)f.destroy();});}
       this.soulFragments={};
