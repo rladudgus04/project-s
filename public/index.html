@@ -655,6 +655,7 @@ socket.on('playerHealthUpdate',data=>{
   updatePartyHpBar(data);
 });
 socket.on('playerDisconnected',id=>{if(gameScene)gameScene.onPlayerLeft(id);});
+socket.on('hitIframe',data=>{if(gameScene)gameScene.startHitIframe(data.duration);});
 function showUpgradePanel(opts){
   const cards=document.getElementById('upgrade-cards');cards.innerHTML='';
   opts.forEach(u=>{
@@ -1653,6 +1654,25 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ===== 피격 무적 이펙트 (0.5초 반짝임) =====
+  startHitIframe(duration){
+    if(!this.soul)return;
+    if(this._iframeTween){this._iframeTween.stop();this._iframeTween=null;}
+    if(this._iframeTimer){this._iframeTimer.remove();this._iframeTimer=null;}
+    // 캐릭터 반짝임 (알파 진동)
+    this._iframeTween=this.tweens.add({
+      targets:this.soul,
+      alpha:{from:0.25,to:1},
+      duration:80,yoyo:true,repeat:-1,ease:'Linear'
+    });
+    // duration 후 복구
+    this._iframeTimer=this.time.delayedCall(duration,()=>{
+      if(this._iframeTween){this._iframeTween.stop();this._iframeTween=null;}
+      if(this.soul&&!myDead)this.soul.setAlpha(1);
+      this._iframeTimer=null;
+    });
+  }
+
   // ===== 적 타격 이펙트 =====
   spawnHitEffect(x, y, color=0xffffff){
     // 충격 링
@@ -2389,6 +2409,60 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // ── 3페이즈 힘 모으기 이펙트 ──
+    if(data.type==='phase3_gather'){
+      const bx=this.boss?this.boss.x:data.x, by=this.boss?this.boss.y:data.y;
+      // 안쪽으로 수축하는 파티클 링
+      for(let i=0;i<20;i++){
+        const a=(i/20)*Math.PI*2;
+        const r=200+Math.random()*150;
+        const sp=this.add.circle(bx+Math.cos(a)*r, by+Math.sin(a)*r, 4+Math.random()*4, 0x8844ff, 0.85);
+        sp.setDepth(5);
+        this.tweens.add({targets:sp, x:bx, y:by, alpha:0, scale:0.2,
+          duration:900+Math.random()*300, ease:'Cubic.in', onComplete:()=>sp.destroy()});
+      }
+      // 중심 펄스 링
+      const ring=this.add.circle(bx,by,20,0x6600ff,0.0);
+      ring.setStrokeStyle(3,0xaa66ff,0.9); ring.setDepth(5);
+      this.tweens.add({targets:ring, scale:4, alpha:0, duration:800, ease:'Cubic.out',
+        onComplete:()=>ring.destroy()});
+    }
+
+    // ── 번개 경고 ──
+    if(data.type==='lightning_warn'){
+      const g=this.add.graphics();g.setDepth(5);
+      g.fillStyle(0xffff00,0.18);g.fillCircle(data.x,data.y,data.radius);
+      g.lineStyle(2,0xffee00,0.7);g.strokeCircle(data.x,data.y,data.radius);
+      // 위에서 내려오는 경고선
+      const bolt=this.add.graphics();bolt.setDepth(5);
+      bolt.lineStyle(2,0xffffaa,0.6);
+      bolt.lineBetween(data.x,data.y-600,data.x,data.y);
+      this.tweens.add({targets:[g,bolt],alpha:{from:0.9,to:0.3},duration:200,yoyo:true,
+        repeat:2,onComplete:()=>{g.destroy();bolt.destroy();}});
+    }
+    // ── 번개 타격 ──
+    if(data.type==='lightning_strike'){
+      this.cameras.main.shake(120,0.012);
+      // 번쩍임
+      const flash=this.add.circle(data.x,data.y,data.radius,0xffffff,0.85);flash.setDepth(6);
+      this.tweens.add({targets:flash,alpha:0,scale:1.6,duration:250,ease:'Cubic.out',
+        onComplete:()=>flash.destroy()});
+      // 타격 원
+      const cr=this.add.circle(data.x,data.y,data.radius,0xffcc00,0.0);
+      cr.setStrokeStyle(3,0xffee00,0.9);cr.setDepth(5);
+      this.tweens.add({targets:cr,alpha:0,scale:1.4,duration:400,ease:'Cubic.out',
+        onComplete:()=>cr.destroy()});
+      // 파티클 폭발
+      for(let i=0;i<10;i++){
+        const a=Math.random()*Math.PI*2,r=Math.random()*data.radius*0.8;
+        const sp=this.add.circle(data.x+Math.cos(a)*r,data.y+Math.sin(a)*r,3+Math.random()*5,0xffff44,0.9);
+        sp.setDepth(6);
+        this.tweens.add({targets:sp,x:data.x+Math.cos(a)*(r+40+Math.random()*60),
+          y:data.y+Math.sin(a)*(r+40+Math.random()*60),alpha:0,
+          duration:400+Math.random()*200,ease:'Cubic.out',onComplete:()=>sp.destroy()});
+      }
+    }
+
     // ── 3페이즈 기믹 실패 ──
     if(data.type==='mechanic3_fail'){
       const el=document.getElementById('neutral-gauge-panel');
@@ -2403,33 +2477,6 @@ class GameScene extends Phaser.Scene {
     if(data.type==='berserk')notify('⚠ 광폭화!',2000,'#ff4444');
     if(data.type==='berserk3')notify('⚠ 극한 광폭화!!',2000,'#ff0000');
     if(data.type==='phase')notify(`페이즈 ${data.n} 돌입!`,2000,'#ff8844');
-
-    // ── 기둥 충돌 스턴 ──
-    if(data.type==='stunned'&&this.boss){
-      // 보스 노란 고정 틴트 + 떨림
-      if(this.bossStage===1)this.boss.setTint(0xffff44);else this.boss.fillColor=0xffff44;
-      if(this._stunTween){this._stunTween.stop();}
-      this._stunTween=this.tweens.add({targets:this.boss,angle:{from:-4,to:4},
-        duration:60,yoyo:true,repeat:Math.floor(data.duration/120),ease:'Linear'});
-      // 충격파 링
-      for(let i=0;i<3;i++){
-        const r=this.add.circle(data.x,data.y,20+i*14,0xffff00,0.6-i*0.15);
-        r.setStrokeStyle(2,0xffee44,0.9);r.setDepth(5);
-        this.tweens.add({targets:r,scale:5+i*1.5,alpha:0,duration:500+i*80,
-          ease:'Cubic.out',delay:i*60,onComplete:()=>r.destroy()});
-      }
-      // 스턴 종료 후 복구
-      this.time.delayedCall(data.duration,()=>{
-        if(this._stunTween){this._stunTween.stop();this._stunTween=null;}
-        if(this.boss){this.boss.setAngle(0);
-          if(this.bossStage===1)this.boss.clearTint();else this.boss.fillColor=0xcc0000;}
-      });
-    }
-    if(data.type==='stunEnd'&&this.boss){
-      if(this._stunTween){this._stunTween.stop();this._stunTween=null;}
-      this.boss.setAngle(0);
-      if(this.bossStage===1)this.boss.clearTint();else this.boss.fillColor=0xcc0000;
-    }
 
     // ── 그로기 ──
     if(data.type==='groggy'){

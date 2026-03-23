@@ -8,11 +8,11 @@ const MAP = 1100; // 맵 경계 -MAP ~ MAP
 
 const STAGE_CONFIG = [
   { waves:[{melee:36,ranged:10,hp:80,dmg:8},{melee:36,ranged:18,hp:90,dmg:10},{melee:30,ranged:23,hp:100,dmg:12}],
-    boss:{name:'안개의 수호자',hp:8000,dmg:20,speed:4,pattern:'charge'} },
+    boss:{name:'안개의 수호자',hp:8000,dmg:35,speed:4,pattern:'charge'} },
   { waves:[{melee:26,ranged:23,hp:110,dmg:12},{melee:28,ranged:24,hp:120,dmg:14},{melee:29,ranged:25,hp:130,dmg:16}],
-    boss:{name:'심연의 파수꾼',hp:10000,dmg:22,speed:8.8,pattern:'spin'} },
+    boss:{name:'심연의 파수꾼',hp:10000,dmg:40,speed:8.8,pattern:'spin'} },
   { waves:[{melee:28,ranged:24,hp:140,dmg:15},{melee:30,ranged:25,hp:150,dmg:18},{melee:32,ranged:26,hp:160,dmg:20}],
-    boss:{name:'황혼의 군주',hp:14000,dmg:24,speed:8.8,pattern:'cross'} },
+    boss:{name:'황혼의 군주',hp:14000,dmg:45,speed:8.8,pattern:'cross'} },
   { waves:[{melee:30,ranged:25,hp:170,dmg:20},{melee:32,ranged:27,hp:180,dmg:22},{melee:34,ranged:28,hp:200,dmg:25}],
     boss:{name:'혼돈의 지배자',hp:19000,dmg:50,speed:8.8,pattern:'berserk'} },
   { waves:[{melee:32,ranged:27,hp:200,dmg:25},{melee:35,ranged:29,hp:220,dmg:28},{melee:38,ranged:30,hp:250,dmg:30}],
@@ -102,12 +102,17 @@ function getLobbyState(room) {
 // ===== 대미지 =====
 function damagePlayer(room, player, base) {
   if (!player || player.hp<=0 || player.invincible) return;
+  // 피격 무적 (0.5초)
+  const now=Date.now();
+  if(player._hitIframe && now < player._hitIframe) return;
   // 수호물 내부 무적
   if(room.barriers && room.barriers.length>0){
     for(const bar of room.barriers){if(dist(player,bar)<250)return;}
   }
   const mult = (player.defenseMult||1) * (player.equipDef||1) * (player.role==='tanker'?0.5:1);
   player.hp = Math.max(0, player.hp - base*mult);
+  player._hitIframe = now + 500; // 0.5초 무적
+  io.to(player.id).emit('hitIframe',{duration:500});
   io.to(room.id).emit('playerHealthUpdate',{playerId:player.id,hp:Math.floor(player.hp),maxHp:player.maxHp});
   if(player.hp<=0) io.to(room.id).emit('playerDied',{playerId:player.id});
 }
@@ -159,13 +164,18 @@ const BOSS_AI = {
     }
     if(boss.hp <= boss.maxHp*0.375 && !boss.phase3Triggered) {
       boss.phase3Triggered=true;
+      boss.isCharging=false;
+      room.phase2GroggyActive=false; // 2페이즈 기믹 강제 중단
+      // 맵 중앙으로 순간이동
+      boss.x=0; boss.y=0;
       const frags=[];
       for(let i=0;i<10;i++)
         frags.push({id:i,x:(Math.random()-0.5)*1800,y:(Math.random()-0.5)*1800,collected:false});
       room.soulFragments=frags; room.neutralGauge=0; room.neutralMult=0;
       room.phase3MechanicSolved=false; room.phase3Failed=false;
-      room.neutralDeadline=now+30000;
-      io.to(room.id).emit('bossAction',{type:'phase3',fragments:frags,x:boss.x,y:boss.y,timer:30});
+      room.neutralDeadline=now+40000;
+      io.to(room.id).emit('bossAction',{type:'phase3',fragments:frags,x:0,y:0,timer:40});
+      io.to(room.id).emit('bossAction',{type:'phase3_gather',x:0,y:0});
     }
 
     // ── 3페이즈 타이머/게이지 ──
@@ -268,100 +278,160 @@ const BOSS_AI = {
 
     // ── 2페이즈 ──
     if(boss.phase2Triggered && !boss.phase3Triggered) {
-      // 스턴 해제 체크
-      if(boss.stunned && now>=boss.stunEnd){
-        boss.stunned=false;
-        io.to(room.id).emit('bossAction',{type:'stunEnd',x:boss.x,y:boss.y});
-      }
-      // 스턴 중엔 패턴 스킵
-      if(boss.stunned) return;
-
-      // 랜덤 플레이어를 향한 돌진 (2s 경고, 1s 돌진)
-      if(!boss.isCharging&&(!boss.lastWallCharge||now-boss.lastWallCharge>5000)){
-        boss.lastWallCharge=now;
-        const t=alive[Math.floor(Math.random()*alive.length)];
-        const tx=t.x, ty=t.y;
-        io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:0});
-        setTimeout(()=>{
-          if(!room.boss)return;
+      if(room.phase2GroggyActive){
+        // 그로기 중: 맵 중앙으로 이동, 공격 차단
+        const dcx=-boss.x, dcy=-boss.y, dcd=Math.hypot(dcx,dcy)||1;
+        if(dcd>15){boss.x+=dcx/dcd*boss.speed*0.8; boss.y+=dcy/dcd*boss.speed*0.8;}
+      } else {
+        // 맵 끝→끝 돌진 (플레이어 방향 기준, 2s 경고)
+        if(!boss.isCharging&&(!boss.lastWallCharge||now-boss.lastWallCharge>5000)){
+          boss.lastWallCharge=now;
           boss.isCharging=true;
-          const cx=tx-boss.x,cy=ty-boss.y,cd=Math.hypot(cx,cy)||1;
-          const [bx,by]=[cx/cd,cy/cd];
-          let ticks=0;
-          const iv=setInterval(()=>{
-            if(!room.boss||ticks++>=25){if(room.boss)boss.isCharging=false;clearInterval(iv);return;}
-            boss.x+=bx*36;boss.y+=by*36;
-            boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
-            // 기둥 충돌 → 3초 스턴
-            (room.pillars||[]).forEach(pillar=>{
-              if(!pillar.broken&&dist(boss,pillar)<100){
-                pillar.broken=true;
-                boss.isCharging=false; clearInterval(iv);
-                boss.stunned=true; boss.stunEnd=Date.now()+3000;
-                io.to(room.id).emit('bossAction',{type:'pillar_break',id:pillar.id});
-                io.to(room.id).emit('bossAction',{type:'stunned',x:boss.x,y:boss.y,duration:3000});
-                if((room.pillars||[]).every(p=>p.broken)){
-                  room.phase2MechanicSolved=true;
-                  io.to(room.id).emit('bossAction',{type:'mechanic2_solved'});
+          const t=alive[Math.floor(Math.random()*alive.length)];
+          const ddx=t.x-boss.x||1, ddy=t.y-boss.y||0;
+          const [dnx,dny]=norm(ddx,ddy);
+          const wh=(px,py,dx,dy)=>{
+            let s=Infinity;
+            if(Math.abs(dx)>0.001){const tx=dx>0?(MAP-px)/dx:(-MAP-px)/dx;if(tx>0)s=Math.min(s,tx);}
+            if(Math.abs(dy)>0.001){const ty=dy>0?(MAP-py)/dy:(-MAP-py)/dy;if(ty>0)s=Math.min(s,ty);}
+            return [px+dx*(s===Infinity?MAP:s), py+dy*(s===Infinity?MAP:s)];
+          };
+          const [ex,ey]=wh(t.x,t.y, dnx, dny);
+          const [sx,sy]=wh(t.x,t.y,-dnx,-dny);
+          io.to(room.id).emit('bossAction',{type:'wallcharge_warn',sx,sy,ex,ey,duration:2000});
+          setTimeout(()=>{
+            if(!room.boss)return;
+            boss.x=sx; boss.y=sy;
+            const total=25, stX=(ex-sx)/total, stY=(ey-sy)/total;
+            let ticks=0;
+            const iv=setInterval(()=>{
+              if(!room.boss||ticks++>=total){if(room.boss)boss.isCharging=false;clearInterval(iv);return;}
+              boss.x+=stX; boss.y+=stY;
+              (room.pillars||[]).forEach(pillar=>{
+                if(!pillar.broken&&dist(boss,pillar)<100){
+                  pillar.broken=true;
+                  io.to(room.id).emit('bossAction',{type:'pillar_break',id:pillar.id});
+                  if((room.pillars||[]).every(p=>p.broken)&&!room.phase2GroggyActive){
+                    room.phase2MechanicSolved=true;
+                    room.phase2GroggyActive=true;
+                    boss.isCharging=true;
+                    clearInterval(iv);
+                    io.to(room.id).emit('bossAction',{type:'mechanic2_solved'});
+                    io.to(room.id).emit('bossAction',{type:'groggy',x:boss.x,y:boss.y,duration:10000});
+                    setTimeout(()=>{
+                      if(!room.boss)return;
+                      room.phase2GroggyActive=false;
+                      room.phase2MechanicSolved=false;
+                      boss.isCharging=false;
+                      boss.lastWallCharge=Date.now();
+                      const np=[];
+                      for(let i=0;i<6;i++){
+                        const a2=(i/6)*Math.PI*2+Math.random()*0.5;
+                        const r2=350+Math.random()*350;
+                        np.push({id:i,x:clamp(Math.cos(a2)*r2,-900,900),y:clamp(Math.sin(a2)*r2,-900,900),broken:false});
+                      }
+                      room.pillars=np;
+                      io.to(room.id).emit('bossAction',{type:'groggyEnd',x:boss.x,y:boss.y});
+                      io.to(room.id).emit('bossAction',{type:'phase2',pillars:np,x:0,y:0});
+                    },10000);
+                  }
                 }
-              }
-            });
-            alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.5);});
-          },40);
-        },2000);
-      }
-      // 12방향 원형 탄막 (3.5s CD)
-      if(!boss.lastSpin2||now-boss.lastSpin2>3500){
-        boss.lastSpin2=now;
-        for(let i=0;i<12;i++){
-          const a=(i/12)*Math.PI*2;
-          const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*11.7,vy:Math.sin(a)*11.7,dmg:boss.dmg*0.55,ttl:140};
+              });
+              alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.5);});
+            },40);
+          },2000);
         }
-        io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
+        // 12방향 원형 탄막 (3.5s CD)
+        if(!boss.lastSpin2||now-boss.lastSpin2>3500){
+          boss.lastSpin2=now;
+          for(let i=0;i<12;i++){
+            const a=(i/12)*Math.PI*2;
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*11.7,vy:Math.sin(a)*11.7,dmg:boss.dmg*0.55,ttl:140};
+          }
+          io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
+        }
       }
     }
 
     // ── 3페이즈 ──
     if(boss.phase3Triggered) {
-      const target=alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
-      const dx=target.x-boss.x,dy=target.y-boss.y,d=Math.hypot(dx,dy);
-      const [nx,ny]=norm(dx,dy);
-      if(!boss.isCharging&&d>80){boss.x+=nx*boss.speed*1.3;boss.y+=ny*boss.speed*1.3;}
-      if(d<80&&(!boss.lastMelee3||now-boss.lastMelee3>700)){
-        boss.lastMelee3=now;
-        damagePlayer(room,target,boss.dmg*1.2);
-      }
-      // 16방향 탄막 (2s CD)
-      if(!boss.lastSpin3||now-boss.lastSpin3>2000){
-        boss.lastSpin3=now;
-        for(let i=0;i<16;i++){
-          const a=(i/16)*Math.PI*2;
-          const pid=`p${room.projId++}`;
-          room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*13,vy:Math.sin(a)*13,dmg:boss.dmg*0.65,ttl:130};
+      // 무력화 성공: 데미지 저항 해제 + 1페이즈 패턴 반복
+      if(room.phase3MechanicSolved){
+        const target=alive.reduce((a,b)=>dist(a,boss)<dist(b,boss)?a:b);
+        const dx=target.x-boss.x,dy=target.y-boss.y,d=Math.hypot(dx,dy);
+        const [nx,ny]=norm(dx,dy);
+        if(d>80){boss.x+=nx*boss.speed;boss.y+=ny*boss.speed;}
+        if(d<80&&(!boss.lastMelee3r||now-boss.lastMelee3r>1000)){
+          boss.lastMelee3r=now;
+          damagePlayer(room,target,boss.dmg);
+          io.to(room.id).emit('bossAction',{type:'melee',x:boss.x,y:boss.y});
         }
-        io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
-      }
-      // 맵 끝→끝 돌진 (2s 경고, 4s CD)
-      if(!boss.isCharging&&(!boss.lastCharge3||now-boss.lastCharge3>4000)){
-        boss.lastCharge3=now;
-        const t=alive[Math.floor(Math.random()*alive.length)];
-        const ddx=t.x-boss.x||1,ddy=t.y-boss.y||0;
-        const [dnx,dny]=norm(ddx,ddy);
-        const sx=-dnx*MAP*0.9,sy=-dny*MAP*0.9;
-        const ex=dnx*MAP*0.9,ey=dny*MAP*0.9;
-        io.to(room.id).emit('bossAction',{type:'wallcharge_warn',sx,sy,ex,ey,duration:2000});
-        setTimeout(()=>{
-          if(!room.boss)return;
-          boss.isCharging=true;boss.x=sx;boss.y=sy;
-          const total=25,stX=(ex-sx)/total,stY=(ey-sy)/total;
-          let ticks=0;
-          const iv=setInterval(()=>{
-            if(!room.boss||ticks++>=total){if(room.boss)boss.isCharging=false;clearInterval(iv);return;}
-            boss.x+=stX;boss.y+=stY;
-            alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg*1.5);});
-          },40);
-        },2000);
+        if(!boss.isCharging&&(!boss.lastCharge3r||now-boss.lastCharge3r>3000)){
+          boss.lastCharge3r=now;
+          const t=alive[Math.floor(Math.random()*alive.length)];
+          const tx=t.x,ty=t.y;
+          io.to(room.id).emit('bossAction',{type:'charge_warn',tx,ty,delay:0});
+          setTimeout(()=>{
+            if(!room.boss)return;
+            boss.isCharging=true;
+            const cx=tx-boss.x,cy=ty-boss.y,cd=Math.hypot(cx,cy)||1;
+            const [bx,by]=[cx/cd,cy/cd];
+            let ticks=0;
+            const iv=setInterval(()=>{
+              if(!room.boss||ticks++>=50){if(room.boss){boss.isCharging=false;io.to(room.id).emit('bossAction',{type:'charge_end',x:boss.x,y:boss.y});}clearInterval(iv);return;}
+              boss.x+=bx*22;boss.y+=by*22;
+              boss.x=clamp(boss.x,-MAP,MAP);boss.y=clamp(boss.y,-MAP,MAP);
+              alive.forEach(p=>{if(dist(p,boss)<60)damagePlayer(room,p,boss.dmg);});
+            },40);
+          },500);
+        }
+        if(!boss.lastSphere3r||now-boss.lastSphere3r>5000){
+          boss.lastSphere3r=now;
+          const t=alive[Math.floor(Math.random()*alive.length)];
+          const sx=t.x,sy=t.y;
+          io.to(room.id).emit('bossAction',{type:'sphere_warn',x:sx,y:sy,radius:250});
+          setTimeout(()=>{
+            if(!room.boss)return;
+            io.to(room.id).emit('bossAction',{type:'sphere',x:sx,y:sy,radius:250});
+            Object.values(room.players).filter(p=>p.hp>0).forEach(p=>{
+              if(Math.hypot(p.x-sx,p.y-sy)<250)damagePlayer(room,p,boss.dmg*2.5);
+            });
+          },2000);
+        }
+        if(!boss.lastProj3r||now-boss.lastProj3r>4000){
+          boss.lastProj3r=now;
+          for(let i=0;i<8;i++){
+            const a=(i/8)*Math.PI*2;
+            const pid=`p${room.projId++}`;
+            room.projectiles[pid]={id:pid,x:boss.x,y:boss.y,vx:Math.cos(a)*11.7,vy:Math.sin(a)*11.7,dmg:boss.dmg*0.6,ttl:150};
+          }
+          io.to(room.id).emit('bossAction',{type:'spin',x:boss.x,y:boss.y});
+        }
+      } else {
+        // 무력화 미해결: 중앙 고정, 힘 모으기 + 번개
+        boss.x=0; boss.y=0;
+        // 힘 모으기 이펙트 (3s CD)
+        if(!boss.lastGather||now-boss.lastGather>3000){
+          boss.lastGather=now;
+          io.to(room.id).emit('bossAction',{type:'phase3_gather',x:0,y:0});
+        }
+        // 번개 패턴 (2s CD, 경고 1s 후 타격)
+        if(!boss.lastLightning||now-boss.lastLightning>2000){
+          boss.lastLightning=now;
+          const count=3;
+          for(let i=0;i<count;i++){
+            const lx=(Math.random()-0.5)*MAP*1.8, ly=(Math.random()-0.5)*MAP*1.8;
+            io.to(room.id).emit('bossAction',{type:'lightning_warn',x:lx,y:ly,radius:80});
+            setTimeout(()=>{
+              if(!room.boss)return;
+              io.to(room.id).emit('bossAction',{type:'lightning_strike',x:lx,y:ly,radius:80});
+              Object.values(room.players).filter(p=>p.hp>0).forEach(p=>{
+                if(Math.hypot(p.x-lx,p.y-ly)<80)damagePlayer(room,p,boss.dmg*2);
+              });
+            },1000+i*200);
+          }
+        }
       }
     }
 
@@ -1079,13 +1149,11 @@ io.on('connection',socket=>{
     if((room.state==='boss'||room.state==='playing')&&room.boss&&data.enemyId==='boss'){
       const boss=room.boss;
       const groggyMult=boss.groggy?1.5:1;
-      // 스턴 중 피해 50% 증가
-      const stunMult=boss.stunned?1.5:1.0;
       // 기믹 미해결 시 피해 90% 감소
       const mechBlock=(boss.phase2Triggered&&!room.phase2MechanicSolved)||
                       (boss.phase3Triggered&&!room.phase3MechanicSolved);
       const blockMult=mechBlock?0.1:1.0;
-      const fullDmg=dmg*groggyMult*stunMult;
+      const fullDmg=dmg*groggyMult;
       boss.hp=Math.max(0,boss.hp-fullDmg*blockMult);
       // 3페이즈: 무력화 게이지 충전
       if(boss.phase3Triggered&&!room.phase3MechanicSolved&&!room.phase3Failed){
@@ -1246,7 +1314,7 @@ function startGame(room){
     applyEquipStats(p);
   });
   io.to(room.id).emit('gameStart',{
-    players:Object.values(room.players).map(p=>({id:p.id,role:p.role,x:p.x,y:p.y,hp:p.hp,maxHp:p.maxHp}))
+    players:Object.values(room.players).map(p=>({id:p.id,role:p.role,name:p.name||'영혼',x:p.x,y:p.y,hp:p.hp,maxHp:p.maxHp}))
   });
   setTimeout(()=>io.to(room.id).emit('mapState',{nodes:room.mapNodes,currentNodeId:0,stage:room.stage+1}),1800);
 }
@@ -1317,10 +1385,17 @@ function enterMobRoom(room,node){
     }
     // ① 스폰 경고 (위치+타입 미리 전송)
     io.to(room.id).emit('spawnWarn',batch.map(e=>({id:e.id,type:e.type,x:e.x,y:e.y})));
-    // ② 1.5초 후 실제 스폰
+    // ② 1.5초 후 실제 스폰 (초기 쿨다운 설정으로 즉시행동 방지)
     setTimeout(()=>{
       if(!rooms[room.id]||room.state!=='room_mob')return;
-      batch.forEach(e=>{ room.enemies[e.id]=e; });
+      const t=Date.now();
+      batch.forEach(e=>{
+        room.enemies[e.id]={...e,
+          lastShot:  t,          // 첫 틱 즉시발사 방지
+          lastTele:  t,          // 첫 틱 즉시이동 방지
+          lastCharge:t           // 첫 틱 즉시돌진 방지
+        };
+      });
       spawned=end;
       if(spawned<toSpawn.length)setTimeout(spawnBatch,1500);
     },1500);
