@@ -45,47 +45,119 @@
     .role-btns{display:flex;gap:8px;margin-bottom:18px;}
     #lobby-msg{color:#ff6644;font-size:13px;min-height:16px;margin-bottom:8px;}
 
-    /* HUD */
-    #hud{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:5;}
+    /* ===== 하단 플레이어 HUD (LoL 스타일) ===== */
+    #hud{position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+         pointer-events:none;z-index:5;width:700px;}
     #hud.hidden{display:none;}
-    #hud-top{display:flex;align-items:center;justify-content:space-between;
-             padding:10px 18px;background:rgba(0,0,0,0.65);}
-    #wave-info{font-size:13px;color:#c8a0ff;letter-spacing:2px;}
-    #hp-bar-wrap{display:flex;align-items:center;gap:8px;}
-    #hp-label{font-size:15px;color:#88ff88;min-width:110px;text-align:right;}
-    #hp-bar-bg{width:220px;height:16px;background:rgba(0,0,0,0.5);border:1px solid #336633;}
-    #hp-bar{height:100%;background:#44ff88;transition:width .3s;}
-    #party-hp{display:flex;gap:10px;}
-    .party-slot{display:flex;align-items:center;gap:5px;font-size:13px;color:#aaa;}
-    .party-bar-bg{width:88px;height:9px;background:rgba(0,0,0,0.5);border:1px solid #333;}
+    #player-hud-panel{
+      display:flex;align-items:stretch;gap:0;
+      background:linear-gradient(180deg,rgba(5,2,18,0.92) 0%,rgba(2,0,10,0.97) 100%);
+      border:1px solid #3a2060;border-bottom:none;
+      border-radius:10px 10px 0 0;
+      box-shadow:0 -4px 32px rgba(80,20,160,0.35),inset 0 1px 0 rgba(180,120,255,0.12);
+      padding:10px 14px 8px;
+    }
+    /* 왼쪽: 초상화 + 레벨 */
+    #hud-portrait{
+      width:66px;flex-shrink:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:4px;margin-right:12px;
+    }
+    #hud-role-icon{
+      width:58px;height:58px;border:2px solid #6040aa;border-radius:6px;
+      background:rgba(40,10,80,0.6);display:flex;align-items:center;
+      justify-content:center;font-size:22px;position:relative;
+      box-shadow:inset 0 0 12px rgba(120,40,200,0.35);
+    }
+    #hud-role-icon::after{
+      content:'';position:absolute;inset:0;border-radius:4px;
+      border:1px solid rgba(180,120,255,0.25);
+    }
+    #hud-level-badge{
+      font-size:13px;color:#ffcc44;font-weight:bold;letter-spacing:1px;
+      text-shadow:0 0 8px #aa8800;background:rgba(30,18,0,0.7);
+      border:1px solid #6a4800;border-radius:3px;padding:1px 6px;
+    }
+    #hud-role-name{font-size:9px;color:#7060a0;letter-spacing:1px;margin-top:1px;}
+    /* 중앙: 바 + 스킬 */
+    #hud-center{flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center;}
+    #hud-bars{display:flex;flex-direction:column;gap:4px;margin-bottom:6px;}
+    /* HP 바 */
+    #hud-hp-row{display:flex;align-items:center;gap:6px;}
+    #hud-hp-label{font-size:11px;color:#aaddaa;min-width:76px;text-align:right;letter-spacing:.5px;}
+    #hud-hp-track{flex:1;height:14px;background:rgba(0,0,0,0.55);border:1px solid #2a4a2a;
+                  border-radius:2px;overflow:hidden;position:relative;}
+    #hud-hp-fill{height:100%;width:100%;background:linear-gradient(90deg,#0e5520,#2ab84a,#44ff88);
+                 transition:width .25s;border-radius:1px;}
+    /* XP 바 */
+    #hud-xp-row{display:flex;align-items:center;gap:6px;}
+    #hud-xp-label{font-size:10px;color:#7050a0;min-width:76px;text-align:right;}
+    #hud-xp-track{flex:1;height:7px;background:rgba(0,0,0,0.5);border:1px solid #2a1660;
+                  border-radius:1px;overflow:hidden;}
+    #hud-xp-fill{height:100%;width:0%;background:linear-gradient(90deg,#4010aa,#9050ff,#c080ff);
+                 transition:width .3s;}
+    /* 방패 바 */
+    #hud-shield-row{display:flex;align-items:center;gap:6px;}
+    #hud-shield-label{font-size:10px;color:#6688cc;min-width:76px;text-align:right;}
+    #hud-shield-track{flex:1;height:8px;background:rgba(0,0,0,0.5);border:1px solid #1a2a60;
+                      border-radius:1px;overflow:hidden;}
+    #hud-shield-fill{height:100%;width:100%;background:linear-gradient(90deg,#1a3aaa,#4466ff,#88aaff);
+                     transition:width .2s;}
+    /* 스킬 슬롯 */
+    #hud-skills{display:flex;gap:6px;align-items:flex-end;}
+    .skill-slot{
+      width:56px;height:56px;border:1px solid #4a3080;
+      background:linear-gradient(180deg,rgba(20,8,44,0.9),rgba(8,2,22,0.95));
+      position:relative;display:flex;align-items:center;justify-content:center;
+      flex-direction:column;border-radius:4px;
+      box-shadow:inset 0 1px 0 rgba(180,120,255,0.1);
+      transition:border-color .15s;
+    }
+    .skill-slot:hover{border-color:#9060cc;}
+    .skill-slot.ult-slot{
+      border-color:#aa6600;
+      background:linear-gradient(180deg,rgba(40,18,0,0.9),rgba(20,8,0,0.95));
+      width:62px;height:62px;
+    }
+    .skill-key{
+      font-size:10px;color:#5a4070;position:absolute;top:3px;left:4px;
+      font-family:'Courier New',monospace;letter-spacing:.5px;
+    }
+    .skill-name{font-size:9px;color:#9070b8;text-align:center;line-height:1.2;
+                padding:0 2px;max-width:52px;}
+    .skill-cool{
+      position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(0,0,0,0.82),rgba(0,0,0,0.75));
+      display:flex;align-items:center;justify-content:center;
+      font-size:14px;color:#fff;font-weight:bold;border-radius:4px;
+      text-shadow:0 0 8px rgba(200,160,255,0.8);
+    }
+    .skill-cool.hidden{display:none;}
+    /* 오른쪽: 파티 + 스테이지 */
+    #hud-right{width:140px;flex-shrink:0;display:flex;flex-direction:column;
+               gap:6px;justify-content:center;margin-left:12px;}
+    #wave-info{font-size:11px;color:#7060a0;letter-spacing:1px;text-align:right;}
+    #party-hp{display:flex;flex-direction:column;gap:5px;}
+    .party-slot{display:flex;align-items:center;gap:5px;font-size:11px;}
+    .party-bar-bg{flex:1;height:9px;background:rgba(0,0,0,0.5);border:1px solid #2a2040;
+                  border-radius:1px;overflow:hidden;}
     .party-bar{height:100%;transition:width .2s;}
 
-    /* 스킬 쿨타임 HUD */
-    #skill-hud{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
-               display:flex;gap:16px;z-index:5;pointer-events:none;}
-    #skill-hud.hidden{display:none;}
-    .skill-slot{width:52px;height:52px;border:2px solid #6040aa;background:rgba(0,0,0,0.6);
-                position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-    .skill-key{font-size:12px;color:#888;position:absolute;top:3px;left:5px;}
-    .skill-name{font-size:11px;color:#c8a0ff;text-align:center;}
-    .skill-cool{position:absolute;inset:0;background:rgba(0,0,0,0.7);display:flex;
-                align-items:center;justify-content:center;font-size:13px;color:#fff;}
-    .skill-cool.hidden{display:none;}
-
-    /* 보스 HP */
-    #boss-bar{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
-              width:480px;text-align:center;z-index:5;pointer-events:none;}
+    /* 보스 HP — 하단 중앙, HUD 위 */
+    #boss-bar{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);
+              width:520px;text-align:center;z-index:5;pointer-events:none;
+              background:rgba(4,0,10,0.85);border:1px solid #6a1a1a;
+              border-radius:6px;padding:8px 16px 10px;}
     #boss-bar.hidden{display:none;}
-    #boss-name{font-size:17px;color:#ff8888;letter-spacing:3px;margin-bottom:5px;text-shadow:0 0 10px #ff2222;}
-    #boss-hp-bg{width:100%;height:16px;background:rgba(0,0,0,0.6);border:1px solid #aa2222;}
-    #boss-hp-fill{height:100%;background:linear-gradient(90deg,#880000,#ff2222);transition:width .2s;}
+    #boss-name{font-size:16px;color:#ff8888;letter-spacing:3px;margin-bottom:6px;
+               text-shadow:0 0 12px #ff2222;}
+    #boss-hp-bg{width:100%;height:14px;background:rgba(0,0,0,0.6);border:1px solid #661111;
+                border-radius:2px;overflow:hidden;}
+    #boss-hp-fill{height:100%;background:linear-gradient(90deg,#660000,#cc1111,#ff3333);
+                  transition:width .2s;}
 
-    /* XP 바 */
-    #xp-wrap{display:flex;align-items:center;gap:7px;}
-    #xp-label{font-size:14px;color:#c8a0ff;min-width:44px;}
-    #xp-bar-bg{width:160px;height:11px;background:rgba(0,0,0,0.5);border:1px solid #5030aa;}
-    #xp-bar{height:100%;background:linear-gradient(90deg,#7030ee,#c080ff);transition:width .35s;}
-    #xp-text{font-size:12px;color:#8060b0;min-width:54px;}
+    /* XP / HP 레거시 — 사용 안 함, 호환용 */
+    #hp-bar-wrap,#xp-wrap,#hp-label,#hp-bar-bg,#hp-bar,#xp-label,#xp-bar-bg,#xp-bar,#xp-text{display:none!important;}
+    #shield-bar-wrap{display:none!important;}
 
     /* 맵 패널 */
     #map-panel{position:absolute;inset:0;background:rgba(2,0,8,0.97);display:flex;
@@ -280,41 +352,75 @@
   <button class="btn ready-btn" id="ready-btn" onclick="toggleReady()">준비</button>
 </div>
 
-<!-- HUD -->
+<!-- 통합 하단 플레이어 HUD -->
 <div id="hud" class="hidden">
-  <div id="hud-top">
-    <div id="wave-info">STAGE 1</div>
-    <div id="hp-bar-wrap">
-      <div id="hp-label">HP 100/100</div>
-      <div id="hp-bar-bg"><div id="hp-bar" style="width:100%"></div></div>
+  <div id="player-hud-panel">
+
+    <!-- 초상화 + 레벨 -->
+    <div id="hud-portrait">
+      <div id="hud-role-icon">⚔</div>
+      <div id="hud-level-badge">Lv.1</div>
+      <div id="hud-role-name">영혼</div>
     </div>
-    <div id="xp-wrap">
-      <div id="xp-label">Lv.1</div>
-      <div id="xp-bar-bg"><div id="xp-bar" style="width:0%"></div></div>
-      <div id="xp-text">0/100</div>
+
+    <!-- 바 + 스킬 -->
+    <div id="hud-center">
+      <div id="hud-bars">
+        <div id="hud-hp-row">
+          <div id="hud-hp-label">HP 100/100</div>
+          <div id="hud-hp-track"><div id="hud-hp-fill"></div></div>
+        </div>
+        <div id="hud-xp-row">
+          <div id="hud-xp-label">0 / 100</div>
+          <div id="hud-xp-track"><div id="hud-xp-fill"></div></div>
+        </div>
+        <div id="hud-shield-row" style="display:none;">
+          <div id="hud-shield-label">방패</div>
+          <div id="hud-shield-track"><div id="hud-shield-fill"></div></div>
+        </div>
+      </div>
+      <div id="hud-skills">
+        <div class="skill-slot" id="sk-z">
+          <div class="skill-key">Z</div>
+          <div class="skill-name" id="sk-z-name">공격</div>
+          <div class="skill-cool hidden" id="sk-z-cool">-</div>
+        </div>
+        <div class="skill-slot" id="sk-x">
+          <div class="skill-key">X</div>
+          <div class="skill-name" id="sk-x-name">스킬</div>
+          <div class="skill-cool hidden" id="sk-x-cool">-</div>
+        </div>
+        <div class="skill-slot ult-slot" id="sk-ult">
+          <div class="skill-key">SHIFT</div>
+          <div class="skill-name" id="sk-ult-name">궁극기</div>
+          <div class="skill-cool hidden" id="sk-ult-cool">-</div>
+        </div>
+        <div class="skill-slot" id="sk-space">
+          <div class="skill-key">SPC</div>
+          <div class="skill-name">대시</div>
+          <div class="skill-cool hidden" id="sk-space-cool">-</div>
+        </div>
+      </div>
     </div>
-    <div id="party-hp"></div>
+
+    <!-- 스테이지 + 파티 HP -->
+    <div id="hud-right">
+      <div id="wave-info">STAGE 1</div>
+      <div id="party-hp"></div>
+    </div>
+
+  </div>
+
+  <!-- 레거시 호환용 숨김 요소 -->
+  <div style="display:none">
+    <div id="hp-bar-wrap"><div id="hp-label"></div><div id="hp-bar-bg"><div id="hp-bar"></div></div></div>
+    <div id="xp-wrap"><div id="xp-label">Lv.1</div><div id="xp-bar-bg"><div id="xp-bar"></div></div><div id="xp-text"></div></div>
+    <div id="shield-bar-wrap"><div id="shield-bar-fill"></div></div>
   </div>
 </div>
 
-<!-- 스킬 HUD -->
-<div id="skill-hud" class="hidden">
-  <div class="skill-slot" id="sk-z">
-    <div class="skill-key">Z</div>
-    <div class="skill-name" id="sk-z-name">공격</div>
-    <div class="skill-cool hidden" id="sk-z-cool">-</div>
-  </div>
-  <div class="skill-slot" id="sk-x">
-    <div class="skill-key">X</div>
-    <div class="skill-name" id="sk-x-name">스킬</div>
-    <div class="skill-cool hidden" id="sk-x-cool">-</div>
-  </div>
-  <div class="skill-slot" id="sk-space">
-    <div class="skill-key">SPC</div>
-    <div class="skill-name">대시</div>
-    <div class="skill-cool hidden" id="sk-space-cool">-</div>
-  </div>
-</div>
+<!-- 스킬 HUD는 hud 내부로 통합됨 — 호환용 빈 컨테이너 -->
+<div id="skill-hud" style="display:none"></div>
 
 <!-- 피격 오버레이 -->
 <div id="hit-overlay"></div>
@@ -413,6 +519,15 @@
 // ===== 전역 =====
 const socket = io();
 
+// ===== SFX =====
+const SFX_SWORD = [1,2,3,4].map(i=>new Audio(`/assets/sound/sword_sound/sword${i}.mp3`));
+function playSwordSfx(){
+  const sfx = SFX_SWORD[Math.floor(Math.random()*SFX_SWORD.length)];
+  sfx.currentTime = 0;
+  sfx.volume = _bgmVol * 1.5 > 1 ? 1 : _bgmVol * 1.5;
+  sfx.play().catch(()=>{});
+}
+
 // ===== BGM =====
 const BGM_LOBBY  = new Audio('/assets/bgm/Labyrinth_of_Lost_Spirits.mp3');
 const BGM_STAGE1 = new Audio('/assets/bgm/stage1/Spiral_of_Eternal_Spirits.mp3');
@@ -482,9 +597,11 @@ const STAGE_THEMES=[
 ];
 
 // 스킬 쿨타임 (ms)
-const SKILL_Z_CD={attacker:300,tanker:500,healer:800};
-const SKILL_X_CD={attacker:6000,tanker:14500,healer:15000};
-const SKILL_X_NAME={attacker:'검기 날리기',tanker:'수호물 설치',healer:'무적의 시간'};
+const SKILL_Z_CD={attacker:300,tanker:400,healer:600};
+const SKILL_X_CD={attacker:7000,tanker:13000,healer:20000};
+const SKILL_ULT_CD=180000; // 3분
+const SKILL_X_NAME={attacker:'검기 발사',tanker:'수호의 방패',healer:'여명의 빛'};
+const SKILL_ULT_NAME={attacker:'폭풍 참격',tanker:'수호물 설치',healer:'무적의 시간'};
 
 // ===== 타이틀 UI =====
 function showCreateRoom(){socket.emit('createRoom');}
@@ -536,7 +653,6 @@ socket.on('gameStart',data=>{
   switchBgm(BGM_STAGE1);
   showScreen(null);
   document.getElementById('hud').classList.remove('hidden');
-  document.getElementById('skill-hud').classList.remove('hidden');
   document.getElementById('controls').classList.remove('hidden');
   const me=data.players.find(p=>p.id===myId);
   if(me){myHp=me.hp;myMaxHp=me.maxHp;}
@@ -544,6 +660,14 @@ socket.on('gameStart',data=>{
   renderPartyHp(data.players.filter(p=>p.id!==myId));
   // 스킬 이름 설정
   document.getElementById('sk-x-name').textContent=SKILL_X_NAME[myRole]||'스킬';
+  document.getElementById('sk-ult-name').textContent=SKILL_ULT_NAME[myRole]||'궁극기';
+  // 초상화 직업 아이콘/이름
+  const ROLE_ICON={attacker:'⚔',tanker:'🛡',healer:'✦'};
+  const ROLE_COLOR_HEX={attacker:'#ff6644',tanker:'#4488ff',healer:'#44ff88'};
+  const icon=document.getElementById('hud-role-icon');
+  if(icon){icon.textContent=ROLE_ICON[myRole]||'⚔';icon.style.color=ROLE_COLOR_HEX[myRole]||'#c8a0ff';}
+  const rname=document.getElementById('hud-role-name');
+  if(rname){rname.textContent=ROLE_NAME[myRole]||'';rname.style.color=ROLE_COLOR_HEX[myRole]||'#9070b8';}
   if(gameScene)gameScene.initGame(data.players);
 });
 
@@ -602,6 +726,13 @@ socket.on('xpUpdate',data=>{
   document.getElementById('xp-label').textContent=`Lv.${data.level}`;
   document.getElementById('xp-bar').style.width=(data.xp/data.xpMax*100).toFixed(1)+'%';
   document.getElementById('xp-text').textContent=`${data.xp}/${data.xpMax}`;
+  // 신규 HUD
+  const lvBadge=document.getElementById('hud-level-badge');
+  if(lvBadge)lvBadge.textContent=`Lv.${data.level}`;
+  const xpFill=document.getElementById('hud-xp-fill');
+  if(xpFill)xpFill.style.width=(data.xp/data.xpMax*100).toFixed(1)+'%';
+  const xpLbl=document.getElementById('hud-xp-label');
+  if(xpLbl)xpLbl.textContent=`${data.xp} / ${data.xpMax}`;
 });
 // 레벨업 → 자동 스탯 알림 (업그레이드 창 없음)
 socket.on('levelUpAuto',data=>{
@@ -667,7 +798,14 @@ socket.on('enemyTele',data=>{if(gameScene)gameScene.onEnemyTele(data);});
 socket.on('projUpdate',projs=>{if(gameScene)gameScene.onProjUpdate(projs);});
 socket.on('projDestroy',id=>{if(gameScene)gameScene.onProjDestroy(id);});
 socket.on('playerMoved',data=>{if(gameScene)gameScene.onPlayerMoved(data);});
-socket.on('skillUsed',data=>{if(gameScene)gameScene.renderSkillEffect(data,false);});
+socket.on('skillUsed',data=>{
+  if(gameScene)gameScene.renderSkillEffect(data,false);
+  // 탱커 방패 — 모든 플레이어 오라 (다른 클라이언트에서 수신 시)
+  if(data.type==='tanker_shield'&&gameScene){
+    gameScene.showShieldAura('self',15000);
+    Object.keys(gameScene.otherPlayers).forEach(id=>gameScene.showShieldAura(id,15000));
+  }
+});
 socket.on('playerHealthUpdate',data=>{
   if(data.playerId===myId){
     const prev=myHp;
@@ -679,6 +817,25 @@ socket.on('playerHealthUpdate',data=>{
 });
 socket.on('playerDisconnected',id=>{if(gameScene)gameScene.onPlayerLeft(id);});
 socket.on('hitIframe',data=>{if(gameScene)gameScene.startHitIframe(data.duration);});
+socket.on('shieldApplied',data=>{
+  window._shieldMaxShield=data.maxShield||data.shield;
+  const row=document.getElementById('hud-shield-row');
+  const fill=document.getElementById('hud-shield-fill');
+  if(row)row.style.display='flex';
+  if(fill)fill.style.width='100%';
+  clearTimeout(window._shieldHideTimer);
+  window._shieldHideTimer=setTimeout(()=>{if(row)row.style.display='none';},data.duration||15000);
+  if(gameScene)gameScene.showShieldAura('self',data.duration||15000);
+});
+socket.on('shieldUpdate',data=>{
+  const row=document.getElementById('hud-shield-row');
+  const fill=document.getElementById('hud-shield-fill');
+  if(data.maxShield===0||data.shield===0){if(row)row.style.display='none';return;}
+  if(fill){
+    const pct=Math.min(100,Math.round((data.shield/(window._shieldMaxShield||data.maxShield||1))*100));
+    fill.style.width=pct+'%';
+  }
+});
 function showUpgradePanel(opts){
   const cards=document.getElementById('upgrade-cards');cards.innerHTML='';
   opts.forEach(u=>{
@@ -731,9 +888,21 @@ function showScreen(id){
 }
 function updateMyHpBar(){
   const pct=Math.max(0,myHp/myMaxHp*100);
-  document.getElementById('hp-bar').style.width=pct+'%';
-  document.getElementById('hp-label').textContent=`HP ${Math.floor(myHp)}/${myMaxHp}`;
-  document.getElementById('hp-bar').style.background=pct>50?'#44ff88':pct>25?'#ffcc44':'#ff4444';
+  // 신규 HUD
+  const fill=document.getElementById('hud-hp-fill');
+  const label=document.getElementById('hud-hp-label');
+  if(fill){
+    fill.style.width=pct+'%';
+    fill.style.background=pct>50
+      ?'linear-gradient(90deg,#0e5520,#2ab84a,#44ff88)'
+      :pct>25
+      ?'linear-gradient(90deg,#553300,#cc8800,#ffcc44)'
+      :'linear-gradient(90deg,#550000,#cc1111,#ff4444)';
+  }
+  if(label)label.textContent=`HP ${Math.floor(myHp)} / ${myMaxHp}`;
+  // 레거시 호환
+  const legFill=document.getElementById('hp-bar');
+  if(legFill)legFill.style.width=pct+'%';
 }
 
 // ===== 맵 렌더링 =====
@@ -978,7 +1147,7 @@ class GameScene extends Phaser.Scene {
     this.projectiles={}; this.barriers={};
     this.invincibleFx=null;
     this.baseSpeed=300;
-    this.zCooldown=false; this.xCooldown=false;
+    this.zCooldown=false; this.xCooldown=false; this.ultCooldown=false; this.ultActive=false;
 
     // 카메라/월드 바운드
     this.cameras.main.setBackgroundColor('#020008');
@@ -1029,6 +1198,7 @@ class GameScene extends Phaser.Scene {
     this.cursors=this.input.keyboard.createCursorKeys();
     this.keyZ=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.keyX=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    this.keyShift=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.keySpace=this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     this.dashCooldown=false;
   }
@@ -1150,8 +1320,8 @@ class GameScene extends Phaser.Scene {
     // 도깨비불 위치 동기화
     if(this.soulFlame)this.soulFlame.setPosition(this.soul.x,this.soul.y);
     if(this.soulLabel)this.soulLabel.setPosition(this.soul.x-8,this.soul.y-38);
-    // 무적 오라 위치 동기화
     if(this.invincibleFx)this.invincibleFx.setPosition(this.soul.x,this.soul.y);
+    if(this.soul._shieldAura)this.soul._shieldAura.setPosition(this.soul.x,this.soul.y);
 
     // 타 플레이어 lerp
     Object.values(this.otherPlayers).forEach(s=>{
@@ -1159,6 +1329,7 @@ class GameScene extends Phaser.Scene {
       if(s.label)s.label.setPosition(s.x-8,s.y-38);
       if(s.flame)s.flame.setPosition(s.x,s.y);
       if(s._invincibleFx)s._invincibleFx.setPosition(s.x,s.y);
+      if(s._shieldAura)s._shieldAura.setPosition(s.x,s.y);
       if(s.hpBar)this.drawHpBar(s.hpBar,s.x,s.y,s.hp||100,s.maxHp||100,ROLE_COLOR[s.role]||0x44ff88);
     });
 
@@ -1203,9 +1374,53 @@ class GameScene extends Phaser.Scene {
       }
     }
 
+    // 힐러 X — 여명의 빛 이동 처리
+    if(this.wideBeam){
+      const wb=this.wideBeam;
+      wb.x+=wb.vx; wb.y+=wb.vy; wb.traveled+=Math.hypot(wb.vx,wb.vy);
+      wb.visual.x=wb.x; wb.visual.y=wb.y;
+      if(wb.isMine){
+        // 적 피해
+        [...Object.entries(this.enemies),...(this.boss?[['boss',this.boss]]:[])].forEach(([id,e])=>{
+          if(wb.hitEnemyIds.has(id))return;
+          const lx=(e.x-wb.x)*wb.cos+(e.y-wb.y)*wb.sin;
+          const ly=-(e.x-wb.x)*wb.sin+(e.y-wb.y)*wb.cos;
+          if(Math.abs(lx)<80&&Math.abs(ly)<400){
+            wb.hitEnemyIds.add(id);
+            socket.emit('hitEnemy',{enemyId:id,damage:44*(mySkillMult||1)});
+            this.spawnHitEffect(e.x,e.y,0xffffaa);
+          }
+        });
+        // 아군 회복
+        Object.entries(this.otherPlayers).forEach(([id,s])=>{
+          if(wb.healedIds.has(id))return;
+          const lx=(s.x-wb.x)*wb.cos+(s.y-wb.y)*wb.sin;
+          const ly=-(s.x-wb.x)*wb.sin+(s.y-wb.y)*wb.cos;
+          if(Math.abs(lx)<80&&Math.abs(ly)<400){
+            wb.healedIds.add(id);
+            socket.emit('healPlayer',{targetId:s.playerId,amount:40});
+          }
+        });
+        // 자신 회복
+        if(!wb.healedSelf){
+          const lx=(this.soul.x-wb.x)*wb.cos+(this.soul.y-wb.y)*wb.sin;
+          const ly=-(this.soul.x-wb.x)*wb.sin+(this.soul.y-wb.y)*wb.cos;
+          if(Math.abs(lx)<80&&Math.abs(ly)<400){
+            wb.healedSelf=true;
+            socket.emit('healPlayer',{amount:40});
+          }
+        }
+      }
+      if(wb.traveled>=2600||wb.x<-MAP-200||wb.x>MAP+200||wb.y<-MAP-200||wb.y>MAP+200){
+        wb.visual.destroy();
+        this.wideBeam=null;
+      }
+    }
+
     if(!myDead){
       if(Phaser.Input.Keyboard.JustDown(this.keyZ)&&!this.zCooldown)this.doZ();
-      if(Phaser.Input.Keyboard.JustDown(this.keyX)&&!this.xCooldown)this.doX();
+      if(Phaser.Input.Keyboard.JustDown(this.keyX)&&!this.xCooldown&&!this.ultActive)this.doX();
+      if(Phaser.Input.Keyboard.JustDown(this.keyShift)&&!this.ultCooldown&&!this.ultActive)this.doShift();
       if(Phaser.Input.Keyboard.JustDown(this.keySpace)&&!this.dashCooldown)this.doDash();
     }
   }
@@ -1215,17 +1430,53 @@ class GameScene extends Phaser.Scene {
     if(!this.soul)return;
     const {x,y}=this.soul;
     let dx=this.soul.lastDirX||1,dy=this.soul.lastDirY||0;
+    let skillData;
 
-    // 가장 가까운 적 자동 조준
-    let minD=500,closest=null;
-    [...Object.values(this.enemies),...(this.boss?[this.boss]:[])].forEach(e=>{
-      const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
-      if(d<minD){minD=d;closest=e;}
-    });
-    if(closest){const a=Phaser.Math.Angle.Between(x,y,closest.x,closest.y);dx=Math.cos(a);dy=Math.sin(a);}
+    if(myRole==='healer'){
+      // 적 우선 조준, 없으면 아군 조준
+      let minD=500,closestEnemy=null,closestEnemyId=null;
+      Object.entries(this.enemies).forEach(([id,e])=>{
+        const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
+        if(d<minD){minD=d;closestEnemy=e;closestEnemyId=id;}
+      });
+      if(this.boss){
+        const d=Phaser.Math.Distance.Between(x,y,this.boss.x,this.boss.y);
+        if(d<minD){minD=d;closestEnemy=this.boss;closestEnemyId='boss';}
+      }
+      if(closestEnemy){
+        const a=Phaser.Math.Angle.Between(x,y,closestEnemy.x,closestEnemy.y);
+        dx=Math.cos(a);dy=Math.sin(a);
+        skillData={x,y,role:myRole,angle:a,dirX:dx,dirY:dy,type:'z',
+          targetType:'enemy',targetX:closestEnemy.x,targetY:closestEnemy.y,targetId:closestEnemyId};
+      } else {
+        // 아군 조준
+        let minAD=500,closestAlly=null,closestAllyId=null;
+        Object.entries(this.otherPlayers).forEach(([id,s])=>{
+          const d=Phaser.Math.Distance.Between(x,y,s.x,s.y);
+          if(d<minAD){minAD=d;closestAlly=s;closestAllyId=s.playerId||id;}
+        });
+        if(closestAlly){
+          const a=Phaser.Math.Angle.Between(x,y,closestAlly.x,closestAlly.y);
+          dx=Math.cos(a);dy=Math.sin(a);
+          skillData={x,y,role:myRole,angle:a,dirX:dx,dirY:dy,type:'z',
+            targetType:'ally',targetX:closestAlly.x,targetY:closestAlly.y,targetId:closestAllyId};
+        } else {
+          const angle=Math.atan2(dy,dx);
+          skillData={x,y,role:myRole,angle,dirX:dx,dirY:dy,type:'z',targetType:'none'};
+        }
+      }
+    } else {
+      // attacker / tanker — 기존 로직
+      let minD=500,closest=null;
+      [...Object.values(this.enemies),...(this.boss?[this.boss]:[])].forEach(e=>{
+        const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
+        if(d<minD){minD=d;closest=e;}
+      });
+      if(closest){const a=Phaser.Math.Angle.Between(x,y,closest.x,closest.y);dx=Math.cos(a);dy=Math.sin(a);}
+      const angle=Math.atan2(dy,dx);
+      skillData={x,y,role:myRole,angle,dirX:dx,dirY:dy,type:'z'};
+    }
 
-    const angle=Math.atan2(dy,dx);
-    const skillData={x,y,role:myRole,angle,dirX:dx,dirY:dy,type:'z'};
     this.renderSkillEffect(skillData,true);
     socket.emit('useSkill',skillData);
 
@@ -1251,28 +1502,102 @@ class GameScene extends Phaser.Scene {
     const angle=Math.atan2(dy,dx);
 
     if(myRole==='attacker'){
+      // 전방 검기 발사
       this.launchSlash(x,y,dx,dy,angle);
       this.xCooldown=true;
       const xCdA=Math.round(SKILL_X_CD.attacker*myCdMult);
       startCooldown('x',xCdA);
       this.time.delayedCall(xCdA,()=>{this.xCooldown=false;});
     } else if(myRole==='tanker'){
-      socket.emit('useSkill',{type:'tanker_barrier',x,y});
-      this.placeBarrier({id:'local_'+Date.now(),x,y,duration:5000});
-      // 지속 5초 후 cdMult 적용된 쿨타임
+      // 수호의 방패 — 전원 80% 방패 + 공격력 20% 증가 15s
+      socket.emit('useSkill',{type:'tanker_shield',x,y});
+      this.drawShieldBurstFx(x,y);
       this.xCooldown=true;
-      const xCdT=Math.round(10000*myCdMult);
-      startCooldown('x',5000);
-      this.time.delayedCall(5000,()=>{
-        startCooldown('x',xCdT);
-        this.time.delayedCall(xCdT,()=>{this.xCooldown=false;});
-      });
+      const xCdT=Math.round(SKILL_X_CD.tanker*myCdMult);
+      startCooldown('x',xCdT);
+      this.time.delayedCall(xCdT,()=>{this.xCooldown=false;});
     } else if(myRole==='healer'){
-      socket.emit('useSkill',{type:'healer_invincible',x,y});
+      // 여명의 빛 — 800px 폭 광역 빔
+      this.launchWideBeam(x,y,dx,dy,angle);
+      socket.emit('useSkill',{type:'healer_wide_beam',x,y,angle,dirX:dx,dirY:dy});
       this.xCooldown=true;
       const xCdH=Math.round(SKILL_X_CD.healer*myCdMult);
       startCooldown('x',xCdH);
       this.time.delayedCall(xCdH,()=>{this.xCooldown=false;});
+    }
+  }
+
+  // ===== SHIFT — 궁극기 =====
+  doShift(){
+    if(!this.soul)return;
+    const {x,y}=this.soul;
+    let dx=this.soul.lastDirX||1,dy=this.soul.lastDirY||0;
+    let closest=null,minD=800;
+    [...Object.values(this.enemies),...(this.boss?[this.boss]:[])].forEach(e=>{
+      const d=Phaser.Math.Distance.Between(x,y,e.x,e.y);
+      if(d<minD){minD=d;closest=e;}
+    });
+    if(closest){const a=Phaser.Math.Angle.Between(x,y,closest.x,closest.y);dx=Math.cos(a);dy=Math.sin(a);}
+
+    if(myRole==='attacker'){
+      // 폭풍 참격 — 8초간 맵 랜덤 참격 26회
+      this.ultActive=true;
+      socket.emit('useSkill',{type:'attacker_ult_start',x,y});
+      let count=0;
+      const ultLoop=this.time.addEvent({delay:90,repeat:80,callback:()=>{
+        // 적 목록 수집 — 없으면 맵 랜덤
+        const targets=[...Object.entries(this.enemies),...(this.boss?[['boss',this.boss]]:[])];
+        let sx,sy;
+        if(targets.length>0){
+          const [,pick]=targets[Math.floor(Math.random()*targets.length)];
+          // 적 중심 ±80px 오프셋으로 자연스럽게
+          sx=pick.x+(Math.random()-0.5)*80;
+          sy=pick.y+(Math.random()-0.5)*80;
+        } else {
+          sx=(Math.random()-0.5)*2000; sy=(Math.random()-0.5)*2000;
+        }
+        const sa=Math.random()*Math.PI*2;
+        this.drawUltSlash(sx,sy,sa);
+        socket.emit('useSkill',{type:'attacker_ult_slash',x:sx,y:sy,angle:sa});
+        // 충돌 (130x500 직사각형)
+        const cos=Math.cos(sa),sin=Math.sin(sa);
+        targets.forEach(([id,e])=>{
+          const lx=(e.x-sx)*cos+(e.y-sy)*sin;
+          const ly=-(e.x-sx)*sin+(e.y-sy)*cos;
+          if(Math.abs(lx)<65&&Math.abs(ly)<250){
+            socket.emit('hitEnemy',{enemyId:id,damage:BASE_DMG['attacker']*2*(mySkillMult||1)});
+            this.spawnHitEffect(e.x,e.y,0xff3300);
+          }
+        });
+      }});
+      // 8초 후 쿨타임 시작
+      this.time.delayedCall(8100,()=>{
+        this.ultActive=false;
+        this.ultCooldown=true;
+        startCooldown('ult',SKILL_ULT_CD);
+        this.time.delayedCall(SKILL_ULT_CD,()=>{this.ultCooldown=false;});
+      });
+    } else if(myRole==='tanker'){
+      // 수호물 설치 (기존 X 스킬)
+      socket.emit('useSkill',{type:'tanker_barrier',x,y});
+      this.placeBarrier({id:'local_'+Date.now(),x,y,duration:5000});
+      this.ultActive=true;
+      this.time.delayedCall(5000,()=>{
+        this.ultActive=false;
+        this.ultCooldown=true;
+        startCooldown('ult',SKILL_ULT_CD);
+        this.time.delayedCall(SKILL_ULT_CD,()=>{this.ultCooldown=false;});
+      });
+    } else if(myRole==='healer'){
+      // 무적의 시간 (기존 X 스킬)
+      socket.emit('useSkill',{type:'healer_invincible',x,y});
+      this.ultActive=true;
+      this.time.delayedCall(5000,()=>{
+        this.ultActive=false;
+        this.ultCooldown=true;
+        startCooldown('ult',SKILL_ULT_CD);
+        this.time.delayedCall(SKILL_ULT_CD,()=>{this.ultCooldown=false;});
+      });
     }
   }
 
@@ -1326,16 +1651,20 @@ class GameScene extends Phaser.Scene {
   renderSkillEffect(data,isMine){
     const {x,y,role,angle,dirX,dirY,type}=data;
     if(type==='tanker_barrier'||type==='healer_invincible')return; // 별도 처리
+    if(type==='tanker_shield'){this.drawShieldBurstFx(x,y);return;}
+    if(type==='healer_wide_beam'){this.launchWideBeam(x,y,dirX||1,dirY||0,angle||0,false);return;}
+    if(type==='attacker_ult_slash'){this.drawUltSlash(x,y,angle||0);return;}
+    if(type==='attacker_ult_start')return;
 
     if(role==='attacker'&&type==='z'){
-      // ── 검 휘두르기: 우→좌 스윕 애니메이션 ──
+      if(isMine) playSwordSfx();
       this.drawSwordSlash(x,y,dirX,dirY,angle,isMine);
     } else if(role==='tanker'&&type==='z'){
-      // ── 부채꼴 바람: 안쪽→바깥 확장 이펙트 ──
-      this.drawWindFan(x,y,dirX,dirY,angle,isMine);
+      // ── 창 찌르기 ──
+      this.drawSpearThrust(x,y,dirX,dirY,angle,isMine);
     } else if(role==='healer'&&type==='z'){
-      // ── 십자가 + 신성 이펙트 ──
-      this.drawHolyCross(x,y,isMine);
+      // ── 세나 빔 ──
+      this.drawSennaBeam(x,y,dirX,dirY,angle,isMine,data);
     }
   }
 
@@ -1535,6 +1864,161 @@ class GameScene extends Phaser.Scene {
     });
 
     if(isMine)this.checkFanHit(x,y,dx,dy,radius,halfAngle,BASE_DMG['tanker']);
+  }
+
+  // ── 강인한 영혼: 창 찌르기 ──
+  drawSpearThrust(x,y,dx,dy,angle,isMine){
+    const SPEAR_LEN=220, SPEAR_W=8;
+    const C=ROLE_COLOR['tanker'];
+    // 창대 (긴 직사각형)
+    const shaft=this.add.graphics(); shaft.setDepth(5);
+    shaft.fillStyle(0x8899cc,0.9);
+    shaft.fillRect(-4,-SPEAR_LEN*0.15,4,SPEAR_LEN);
+    shaft.lineStyle(2,0xaabbff,0.8);
+    shaft.strokeRect(-4,-SPEAR_LEN*0.15,4,SPEAR_LEN);
+    shaft.x=x; shaft.y=y; shaft.rotation=angle-Math.PI/2;
+    // 창끝 (삼각형)
+    const tip=this.add.graphics(); tip.setDepth(6);
+    tip.fillStyle(0xddeeff,0.95);
+    tip.fillTriangle(-10,0,10,0,0,-28);
+    tip.lineStyle(2,0xffffff,0.8);
+    tip.strokeTriangle(-10,0,10,0,0,-28);
+    tip.x=x+dx*(SPEAR_LEN*0.85); tip.y=y+dy*(SPEAR_LEN*0.85);
+    tip.rotation=angle-Math.PI/2;
+    // 글로우
+    const glow=this.add.graphics(); glow.setDepth(4);
+    glow.lineStyle(14,C,0.18);
+    glow.beginPath();
+    glow.moveTo(x,y);
+    glow.lineTo(x+dx*SPEAR_LEN,y+dy*SPEAR_LEN);
+    glow.strokePath();
+    // 빠른 찌르기 애니메이션 (앞으로 치고 빠지기)
+    const ox=x, oy=y;
+    const tx=x+dx*40, ty=y+dy*40;
+    this.tweens.add({targets:[shaft,tip,glow],
+      x:`+=${dx*40}`,y:`+=${dy*40}`,
+      duration:80,ease:'Cubic.out',yoyo:true,
+      onComplete:()=>{
+        this.tweens.add({targets:[shaft,tip,glow],alpha:0,duration:120,
+          onComplete:()=>{shaft.destroy();tip.destroy();glow.destroy();}});
+      }});
+    // 충격파 원
+    const impact=this.add.circle(x+dx*SPEAR_LEN*0.85,y+dy*SPEAR_LEN*0.85,20,0xaabbff,0.5);
+    impact.setDepth(6);
+    this.tweens.add({targets:impact,scale:2.5,alpha:0,duration:200,onComplete:()=>impact.destroy()});
+
+    if(isMine)this.checkFanHit(x,y,dx,dy,200,0.28,BASE_DMG['tanker']*1.5);
+  }
+
+  // ── 도움의 영혼: 세나 스타일 피해 광선 ──
+  drawSennaBeam(x,y,dx,dy,angle,isMine,data={}){
+    const {targetType,targetX,targetY,targetId}=data;
+    // 실제 타깃 위치 사용 (정확한 빔 끝점)
+    const tx = (targetX!==undefined) ? targetX : x+dx*450;
+    const ty = (targetY!==undefined) ? targetY : y+dy*450;
+    const dist=Math.hypot(tx-x,ty-y);
+    // 빔 색상: 적=청록, 아군=초록
+    const isAlly=targetType==='ally';
+    const BEAM_COL=isAlly?0x44ff88:0x44ddff;
+    const GLOW_COL=isAlly?0x99ffcc:0x99eeff;
+    // 빔 선
+    const g=this.add.graphics(); g.setDepth(6);
+    g.lineStyle(18,GLOW_COL,0.12); g.beginPath(); g.moveTo(x,y); g.lineTo(tx,ty); g.strokePath();
+    g.lineStyle(8,BEAM_COL,0.65);  g.beginPath(); g.moveTo(x,y); g.lineTo(tx,ty); g.strokePath();
+    g.lineStyle(2,0xeeffff,0.9);   g.beginPath(); g.moveTo(x,y); g.lineTo(tx,ty); g.strokePath();
+    // 충격 원
+    const impColor=isAlly?0x44ff88:0x99ffff;
+    const imp=this.add.circle(tx,ty,14,impColor,0.85); imp.setDepth(7);
+    this.tweens.add({targets:imp,scale:2.4,alpha:0,duration:260,onComplete:()=>imp.destroy()});
+    this.tweens.add({targets:g,alpha:0,duration:220,onComplete:()=>g.destroy()});
+
+    if(!isMine)return;
+    if(targetType==='enemy'&&targetId){
+      // 정해진 적에게 데미지
+      socket.emit('hitEnemy',{enemyId:targetId,damage:30*(mySkillMult||1)});
+      if(targetX!==undefined)this.spawnHitEffect(targetX,targetY,0x44ddff);
+    } else if(targetType==='ally'&&targetId){
+      // 아군 회복 2
+      socket.emit('healPlayer',{targetId,amount:2});
+    } else if(!targetType||targetType==='none'){
+      // 방향 기준 첫 번째 적 탐색 (fallback)
+      let hit1=false;
+      [...Object.entries(this.enemies),...(this.boss?[['boss',this.boss]]:[])].forEach(([id,e])=>{
+        if(hit1)return;
+        const ex=e.x-x,ey=e.y-y;
+        const proj=ex*dx+ey*dy;
+        if(proj<0||proj>450)return;
+        if(Math.abs(ex*dy-ey*dx)<40){
+          hit1=true;
+          socket.emit('hitEnemy',{enemyId:id,damage:30*(mySkillMult||1)});
+          this.spawnHitEffect(e.x,e.y,0x44ddff);
+        }
+      });
+    }
+  }
+
+  // ── 힐러 X — 여명의 빛 런치 (800px 폭 이동 빔) ──
+  launchWideBeam(x,y,dx,dy,angle,isMine=true){
+    if(this.wideBeam){this.wideBeam.visual.destroy();this.wideBeam=null;}
+    const cos=Math.cos(angle),sin=Math.sin(angle);
+    const g=this.add.graphics(); g.setDepth(5);
+    // 800px 폭(수직), 160px 길이(진행방향)
+    g.fillStyle(0xffffff,0.07);  g.fillRect(-80,-400,160,800);
+    g.lineStyle(4,0xaaffdd,0.5); g.strokeRect(-80,-400,160,800);
+    g.lineStyle(2,0xeeffff,0.9); g.strokeRect(-30,-400,60,800);
+    g.x=x; g.y=y; g.rotation=angle;
+    this.wideBeam={x,y,vx:dx*22,vy:dy*22,traveled:0,visual:g,
+      cos,sin,isMine,hitEnemyIds:new Set(),healedIds:new Set(),healedSelf:false};
+  }
+
+  // ── 어태커 궁극기 — 개별 참격 ──
+  drawUltSlash(x,y,angle){
+    const g=this.add.graphics(); g.setDepth(7);
+    // 130x500 참격 (폭 30% 증가)
+    g.fillStyle(0xff2200,0.55); g.fillRect(-65,-250,130,500);
+    g.lineStyle(3,0xff6600,0.8); g.strokeRect(-65,-250,130,500);
+    g.lineStyle(1,0xffaa00,0.9); g.strokeRect(-25,-250,50,500);
+    g.x=x; g.y=y; g.rotation=angle;
+    this.tweens.add({targets:g,alpha:0,duration:260,delay:60,onComplete:()=>g.destroy()});
+    // 플래시
+    const flash=this.add.rectangle(x,y,130,500,0xffffff,0.4);
+    flash.setRotation(angle); flash.setDepth(8);
+    this.tweens.add({targets:flash,alpha:0,duration:90,onComplete:()=>flash.destroy()});
+  }
+
+  // ── 탱커 X — 방패 버스트 이펙트 ──
+  // ── 방패 오라 — 플레이어에 지속 링 표시 ──
+  showShieldAura(targetKey,duration){
+    // targetKey: 'self' 또는 otherPlayers의 키(playerId)
+    const obj = targetKey==='self' ? this.soul : Object.values(this.otherPlayers).find(s=>s.playerId===targetKey||s===this.otherPlayers[targetKey]);
+    if(!obj)return;
+    // 기존 오라 제거
+    if(obj._shieldAura){obj._shieldAura.destroy();obj._shieldAura=null;}
+    const ring=this.add.circle(obj.x,obj.y,22,0x4466ff,0);
+    ring.setStrokeStyle(3,0x88aaff,0.85);
+    ring.setDepth(6);
+    // 반짝이는 스케일 애니메이션
+    this.tweens.add({targets:ring,scaleX:1.15,scaleY:1.15,alpha:0.7,duration:500,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+    obj._shieldAura=ring;
+    // duration 후 제거
+    this.time.delayedCall(duration,()=>{
+      if(obj._shieldAura===ring){ring.destroy();obj._shieldAura=null;}
+    });
+  }
+
+  drawShieldBurstFx(x,y){
+    for(let i=0;i<8;i++){
+      const a=(i/8)*Math.PI*2;
+      const sx=x+Math.cos(a)*60, sy=y+Math.sin(a)*60;
+      const shard=this.add.rectangle(sx,sy,14,28,0x4488ff,0.8);
+      shard.setRotation(a); shard.setDepth(7);
+      this.tweens.add({targets:shard,x:sx+Math.cos(a)*80,y:sy+Math.sin(a)*80,alpha:0,
+        duration:500,ease:'Cubic.out',onComplete:()=>shard.destroy()});
+    }
+    const ring=this.add.circle(x,y,30,0x4466ff,0.6); ring.setDepth(6);
+    this.tweens.add({targets:ring,scale:5,alpha:0,duration:500,onComplete:()=>ring.destroy()});
+    const glow=this.add.circle(x,y,20,0xaaccff,0.9); glow.setDepth(6);
+    this.tweens.add({targets:glow,scale:3,alpha:0,duration:300,onComplete:()=>glow.destroy()});
   }
 
   // ── 도움의 영혼: 십자가 + 신성 이펙트 (컨테이너 기반, 버그 수정) ──
@@ -1774,6 +2258,7 @@ class GameScene extends Phaser.Scene {
     Object.values(this.enemies).forEach(s=>{if(s.hpBar)s.hpBar.destroy();s.destroy();});
     this.enemies={};
     if(this.movingSlash){this.movingSlash.visual.destroy();this.movingSlash=null;}
+    if(this.wideBeam){this.wideBeam.visual.destroy();this.wideBeam=null;}
     Object.values(enemies).forEach(e=>this.createEnemySprite(e));
   }
 
@@ -2560,6 +3045,7 @@ class GameScene extends Phaser.Scene {
     if(this.soulFragments){Object.values(this.soulFragments).forEach(f=>{if(f&&f.active)f.destroy();});this.soulFragments={};}
     this.boss.destroy();this.boss=null;
     if(this.movingSlash){this.movingSlash.visual.destroy();this.movingSlash=null;}
+    if(this.wideBeam){this.wideBeam.visual.destroy();this.wideBeam=null;}
   }
 
   onPlayerDied(playerId){

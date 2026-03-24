@@ -102,16 +102,30 @@ function getLobbyState(room) {
 // ===== 대미지 =====
 function damagePlayer(room, player, base) {
   if (!player || player.hp<=0 || player.invincible) return;
-  // 피격 무적 (0.5초)
   const now=Date.now();
   if(player._hitIframe && now < player._hitIframe) return;
-  // 수호물 내부 무적
   if(room.barriers && room.barriers.length>0){
     for(const bar of room.barriers){if(dist(player,bar)<250)return;}
   }
-  const mult = (player.defenseMult||1) * (player.equipDef||1) * (player.role==='tanker'?0.5:1);
-  player.hp = Math.max(0, player.hp - base*mult);
-  player._hitIframe = now + 500; // 0.5초 무적
+  // 방패 만료 체크
+  if(player._shieldActive && player._shieldExpire && now>player._shieldExpire){
+    player.shieldHp=0; player._shieldActive=false;
+    player.damageMult=Math.max(1,(player.damageMult||1)/1.2);
+    player._shieldExpire=0;
+    io.to(player.id).emit('shieldUpdate',{shield:0,maxShield:0});
+  }
+  const mult=(player.defenseMult||1)*(player.equipDef||1)*(player.role==='tanker'?0.5:1);
+  const totalDmg=base*mult;
+  if((player.shieldHp||0)>0){
+    const absorbed=Math.min(player.shieldHp,totalDmg);
+    player.shieldHp-=absorbed;
+    const remaining=totalDmg-absorbed;
+    player.hp=Math.max(0,player.hp-remaining);
+    io.to(player.id).emit('shieldUpdate',{shield:Math.floor(player.shieldHp),maxShield:Math.floor(player.maxHp*0.8)});
+  } else {
+    player.hp=Math.max(0,player.hp-totalDmg);
+  }
+  player._hitIframe=now+500;
   io.to(player.id).emit('hitIframe',{duration:500});
   io.to(room.id).emit('playerHealthUpdate',{playerId:player.id,hp:Math.floor(player.hp),maxHp:player.maxHp});
   if(player.hp<=0) io.to(room.id).emit('playerDied',{playerId:player.id});
@@ -1149,8 +1163,8 @@ io.on('connection',socket=>{
     if((room.state==='boss'||room.state==='playing')&&room.boss&&data.enemyId==='boss'){
       const boss=room.boss;
       const groggyMult=boss.groggy?1.5:1;
-      // 기믹 미해결 시 피해 90% 감소
-      const mechBlock=(boss.phase2Triggered&&!room.phase2MechanicSolved)||
+      // 기믹 미해결 시 피해 90% 감소 (2페이즈 블록은 3페이즈 미진입 시에만 적용)
+      const mechBlock=(!boss.phase3Triggered&&boss.phase2Triggered&&!room.phase2MechanicSolved)||
                       (boss.phase3Triggered&&!room.phase3MechanicSolved);
       const blockMult=mechBlock?0.1:1.0;
       const fullDmg=dmg*groggyMult;
@@ -1200,13 +1214,37 @@ io.on('connection',socket=>{
         },i*1000);
       }
     }
-    // 탱커 배리어
+    // 탱커 배리어 (궁극기)
     if(data.type==='tanker_barrier'){
       const room=rooms[socket.roomId];if(!room)return;
       const bid=`bar${Date.now()}`;
       room.barriers=room.barriers||[];
       room.barriers.push({id:bid,x:data.x,y:data.y,expires:Date.now()+5000});
       io.to(room.id).emit('barrierPlaced',{id:bid,x:data.x,y:data.y,duration:5000});
+    }
+    // 탱커 수호의 방패 (X 스킬) — 전원 80% 방패 + 공격력 20% 증가 15s
+    if(data.type==='tanker_shield'){
+      const room=rooms[socket.roomId];if(!room)return;
+      const dur=15000;
+      Object.values(room.players).forEach(p=>{
+        if(p.hp>0){
+          if(!p._shieldActive){p.damageMult=(p.damageMult||1)*1.2;p._shieldActive=true;}
+          p.shieldHp=Math.floor(p.maxHp*0.8);
+          p._shieldExpire=Date.now()+dur;
+          io.to(p.id).emit('shieldApplied',{shield:p.shieldHp,maxShield:Math.floor(p.maxHp*0.8),duration:dur});
+        }
+      });
+      setTimeout(()=>{
+        const r=rooms[room.id];if(!r)return;
+        Object.values(r.players).forEach(p=>{
+          if(p._shieldActive){
+            p.shieldHp=0;p._shieldActive=false;
+            p.damageMult=Math.max(1,(p.damageMult||1)/1.2);
+            p._shieldExpire=0;
+            io.to(p.id).emit('shieldUpdate',{shield:0,maxShield:0});
+          }
+        });
+      },dur+100);
     }
   });
 
